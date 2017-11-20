@@ -1,0 +1,82 @@
+---
+title: "Filtered Data Creation"
+author: "Will Renius"
+date: "November 20, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries
+```{r}
+#detach("package:stats")
+library(tidyverse)
+library(lubridate)
+```
+
+
+```{r}
+load("data/aggregated_mens.RData")
+men.data <- t2
+```
+
+```{r}
+str(men.data)
+```
+
+```{r}
+win.odds.columns <- c("B365W", "B.WW" , "CBW" , "EXW" , "LBW" , "GBW" , "IWW" , "PSW" , "SBW" , "SJW" , "UBW" )
+lose.odds.columns <- c("B365L", "B.WL" , "CBL" , "EXL" , "LBL" , "GBL" , "IWL" , "PSL" , "SBL" , "SJL" , "UBL" ) 
+win.odds.col.nums <- match(win.odds.columns,names(men.data))
+lose.odds.col.nums <- match(lose.odds.columns,names(men.data))
+
+men.data %>% select(win.odds.col.nums) %>% apply(1, function(x) sum(!is.na(x))) -> men.data$countWinOdds
+
+men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) sum(!is.na(x))) -> men.data$countLoseOdds
+
+#already done double checked, avgL same values
+#men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) mean(x, na.rm = T) )-> men.data$meanLoseOdds
+
+#men.data %>% select(win.odds.columns) %>% apply(1, function(x) mean(x, na.rm = T) )-> men.data$meanWinOdds
+```
+```{r}
+#men.data %>% filter (meanLoseOdds != avgW)
+```
+
+
+```{r}
+dates <- mdy(men.data$Date)
+men.data$date.new <- dates
+data.filtered <- men.data  %>% select(-W1, -L1, -W2, -L2, -W3, -L3, -W4, -L4, -W5, -L5, -Wsets, -Lsets, -Comment,  -Date, -Winner, -Loser, - Tournament, -Location)
+#reformat these 
+data.filtered$LRank <- as.integer(data.filtered$LRank)
+data.filtered$LPts <- as.integer(data.filtered$LPts)
+#creating new variable upset that I use as label to predict
+data.filtered <- mutate(data.filtered, upset = as.factor(WRank > LRank))
+
+str(data.filtered)
+
+```
+Save data
+```{r}
+#save(men.data, file = "men.data.RData")
+```
+
+example of how to make the training and testing data
+```{r}
+#
+train.data <- data.filtered %>% dplyr::filter(date.new < as.Date("2017-01-01")) %>% select(-date.new)
+test.data <- data.filtered %>% dplyr::filter(date.new > as.Date("2004-01-01"), date.new < as.Date("2018-01-01")) %>% select(-date.new)
+
+#train.data.filtered <- train.data %>% dplyr::filter(countWinOdds == 5, countLoseOdds == 5) %>% select(-Round, -Best.of, -Series)
+
+train.data.filtered <- sample_n(train.data, 100)
+test.data.filtered <- sample_n(test.data, 100)
+
+str(train.data.filtered)
+str(test.data.filtered)
+
+```
+
