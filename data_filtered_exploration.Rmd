@@ -1,0 +1,109 @@
+---
+title: "Filtered Data Exploration"
+author: "Will Renius"
+date: "November 16, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries
+```{r}
+#detach("package:stats")
+library(tidyverse)
+library(lubridate)
+```
+
+
+```{r}
+load("data/filtered.men.data.RData")
+men.data <- data.filtered
+```
+
+```{r}
+str(men.data)
+```
+
+
+
+
+
+```{r}
+ggplot(data = men.data, mapping = aes(avgW)) + geom_histogram(binwidth = 0.01)
+ggplot(data = men.data, mapping = aes(avgL)) + geom_histogram(binwidth = 0.01)
+
+```
+```{r}
+men.data %>% dplyr::filter(countWinOdds > 4, date.new > as.Date("2014-01-01")) %>% ggplot(., mapping = aes(avgW, avgL)) + geom_point() + coord_trans(y = "log10", x ="log10")
+
+```
+```{r}
+normal.data <- men.data %>%  dplyr::filter(countWinOdds > 4, (date.new < as.Date("2012-10-01") | date.new > as.Date("2014-01-01"))) 
+
+normal.data %>% ggplot(., mapping = aes(avgW, avgL)) + geom_point() + coord_trans(y = "log10", x ="log10")
+```
+Some inbetween are also on linear scale, but this is the worst date range
+```{r}
+weird.data <- men.data %>% dplyr::filter(countWinOdds > 4, date.new > as.Date("2012-12-01"), date.new < as.Date("2013-07-01"))
+weird.data %>% ggplot(., mapping = aes(avgW, avgL)) + geom_point() + coord_trans(y = "log10", x ="log10")
+```
+Somthing weird happened in 2013, might be interesting to explore more
+
+```{r}
+win.odds.columns <- c("B365W", "B.WW" , "CBW" , "EXW" , "LBW" , "GBW" , "IWW" , "PSW" , "SBW" , "SJW" , "UBW" )
+lose.odds.columns <- c("B365L", "B.WL" , "CBL" , "EXL" , "LBL" , "GBL" , "IWL" , "PSL" , "SBL" , "SJL" , "UBL" ) 
+win.odds.col.nums <- match(win.odds.columns,names(men.data))
+lose.odds.col.nums <- match(lose.odds.columns,names(men.data))
+
+```
+
+```{r}
+#men.data %>% dplyr::filter(date.new > as.Date("2013-01-01"), date.new < as.Date("2013-07-01")) %>% group_by(.dots = win.odds.columns) %>% summarise(count = n()) %>% arrange(desc(count))
+```
+```{r}
+print("werid data")
+wierd.counts <- NA
+for(col.index in win.odds.col.nums){
+  #print(names(men.data)[col.index])
+  #print(sum(!is.na(weird.data[,col.index])))
+  wierd.counts <- c(wierd.counts, sum(!is.na(weird.data[,col.index])))
+}
+print("Normal data")
+normal.counts <- NA
+
+for(col.index in win.odds.col.nums){
+  #print(names(men.data)[col.index])
+  #print(sum(!is.na(normal.data[,col.index])))
+  normal.counts <- c(normal.counts, sum(!is.na(normal.data[,col.index])))
+
+}
+print(names(men.data)[win.odds.col.nums])
+set_names(normal.counts, wierd.counts)
+
+```
+
+```{r}
+summary(men.data)
+```
+```{r}
+summary(weird.data)
+```
+```{r}
+weird.data %>% select(EXW) %>% ggplot(., aes(x = EXW)) + geom_histogram()
+normal.data %>% select(EXW) %>% ggplot(., aes(x = EXW)) + geom_histogram()
+
+```
+
+
+
+
+
+```{r}
+men.data %>% filter(avgW > avgL + 10) %>% summarize(count = n())
+men.data %>% filter(avgW < avgL - 10) %>% summarize(count = n())
+```
+
+
+

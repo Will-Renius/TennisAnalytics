@@ -79,4 +79,21 @@ str(train.data.filtered)
 str(test.data.filtered)
 
 ```
+```{r}
+# Convert character vector to list of symbols
+dots <- lapply(win.odds.columns, as.symbol)
+#test.filtered <- data.filtered
+win.odds.col.nums.2 <- match(win.odds.columns,names(data.filtered))
+print(win.odds.columns)
+print(win.odds.col.nums.2)
+#test.filtered <- mutate_each(data.filtered, funs(ifelse(is.na(.), 0, 1)))
+
+for(col.index in win.odds.col.nums.2){
+  print(col.index)
+  print(sum(!is.na(data.filtered[,col.index])))
+}
+
+#test.filtered %>% group_by(.dots=dots) %>% summarise(count = n()) %>% arrange(desc(count))
+```
+
 
