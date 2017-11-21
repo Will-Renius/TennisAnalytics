@@ -14,46 +14,78 @@ library(ggplot2)
 library(dplyr)
 library(tidyr)
 library(plyr)
+library(stringr)
 ```
 
 ### Import data
 ```{r}
 d.01 <- read.csv("2001.csv", header = TRUE)
+d.01$year <- rep(2001, nrow(d.01))
+
 d.02 <- read.csv("2002.csv", header = TRUE)
+d.02$year <- rep(2002, nrow(d.02))
+
 d.03 <- read.csv("2003.csv", header = TRUE)
+d.03$year <- rep(2003, nrow(d.03))
+
 d.04 <- read.csv("2004.csv", header = TRUE)
+d.04$year <- rep(2004, nrow(d.04))
+
 d.05 <- read.csv("2005.csv", header = TRUE)
+d.05$year <- rep(2005, nrow(d.05))
+
 d.06 <- read.csv("2006.csv", header = TRUE)
+d.06$year <- rep(2006, nrow(d.06))
+
 d.07 <- read.csv("2007.csv", header = TRUE)
+d.07$year <- rep(2007, nrow(d.07))
+
 d.08 <- read.csv("2008.csv", header = TRUE)
+d.08$year <- rep(2008, nrow(d.08))
+
 d.09 <- read.csv("2009.csv", header = TRUE)
+d.09$year <- rep(2009, nrow(d.09))
+
 d.10 <- read.csv("2010.csv", header = TRUE)
+d.10$year <- rep(2010, nrow(d.10))
+
 d.11 <- read.csv("2011.csv", header = TRUE)
+d.11$year <- rep(2011, nrow(d.11))
+
 d.12 <- read.csv("2012.csv", header = TRUE)
+d.12$year <- rep(2012, nrow(d.12))
+
 d.13 <- read.csv("2013.csv", header = TRUE)
+d.13$year <- rep(2013, nrow(d.13))
+d.13 <- d.13 %>% select(-c(EXW,EXL))
+
 d.14 <- read.csv("2014.csv", header = TRUE)
+d.14$year <- rep(2014, nrow(d.14))
+
 d.15 <- read.csv("2015.csv", header = TRUE)
+d.15$year <- rep(2015, nrow(d.15))
+
 d.16 <- read.csv("2016.csv", header = TRUE)
+d.16$year <- rep(2016, nrow(d.16))
+
 d.17 <- read.csv("2017.csv", header = TRUE)
+d.17$year <- rep(2017, nrow(d.17))
 
 total <- rbind.fill(d.01, d.02, d.03, d.04, d.05, d.06, d.07, d.08, d.09, d.10, d.11, d.12, d.13, d.14, d.15, d.16, d.17)
 ```
 
 ```{r}
-total %>% arrange(Date)
-```
-
-
-```{r}
+# eliminate the flaued existing maxW, maxL, avgW, avgL
 t2 <- total %>% select(-c(length(total), length(total) - 1, length(total) - 2, length(total) - 3))
 ```
 
 ```{r}
 length(t2)
-#summary(t2)
+summary(t2)
 ```
 
 ```{r}
+# create the average odds variables
 avgW <- rep(NA,nrow(t2))
 avgL <- rep(NA,nrow(t2))
 t2$avgW <- avgW
@@ -66,11 +98,12 @@ for(i in 1:nrow(total.2)){
 
 
 ```{r}
-t2
+# put the column 'year' in the front
+table <- t2 %>% select(35,1:34,36:53)
 ```
 
 
 ```{r}
-save(t2, file = "aggregated_mens.RData")
+save(table, file = "aggregated_mens.RData")
 ```
 
