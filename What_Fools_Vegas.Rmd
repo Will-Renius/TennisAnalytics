@@ -1,0 +1,183 @@
+---
+title: "Project"
+author: "Ashton Pallottini"
+date: "November 12, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, warning=FALSE,  message=FALSE}
+library(plyr)
+library(dplyr)
+library(ggplot2)
+library(tidyverse)
+library(stringr)
+library(ggimage)
+```
+
+
+```{r}
+load("aggregated_mens.RData")#Load in data frame t2
+
+t2$Upset <- rep(0, dim(t2)[1]) #Initialize Upset value
+
+#Create Upset value equal to 1 if the larger odds (underdog) value won, 0 if the smaller odds value won, and NA if either avgW or avgL is NaN
+for(i in (1:dim(t2)[1])){
+  if(is.nan(t2$avgW[i]) == FALSE & is.nan(t2$avgL[i]) == FALSE){
+    if(t2$avgW[i] > t2$avgL[i]){
+      t2$Upset[i] <- 1
+    }
+  }
+  else{
+    t2$Upset[i] <- NA
+  }
+}
+
+
+t2$Best.of.3 <- rep(0,dim(t2)[1]) #Initialize Best.of.3 dummy variable
+
+#Gives values of 1 to matches that were best of 3
+for(i in (1:dim(t2)[1])){
+  if(t2$Best.of[i] == 3){
+    t2$Best.of.3[i] <- 1
+  }
+}
+
+t2.LW.Avg.Ratio <- rep(0, dim(t2)[1]) #Initialize LW.Avg.Ratio
+
+#Creates ratio of loser odds to winner odds if both avgW and avgL are not NaN and makes the value NA otherwise. Smaller values here are larger upsets.
+for(i in (1:dim(t2)[1])){
+  if(is.nan(t2$avgW[i]) == FALSE & is.nan(t2$avgL[i]) == FALSE){
+    t2$LW.Avg.Ratio[i] <- t2$avgL[i] / t2$avgW[i]
+  }
+  else{
+    t2$LW.Avg.Ratio[i] <- NA
+  }
+}
+
+```
+
+
+```{r}
+#Creates linear regression of Upset on which Series it is
+lm.series.upset <- lm(Upset ~ Series, data = t2)
+summary(lm.series.upset)
+
+#Creates linear regression of Upset on inside/outside
+lm.court.upset <- lm(Upset ~ Court, data = t2)
+summary(lm.court.upset)
+
+#Creates linear regression of Upset on surface type
+lm.surface.upset <- lm(Upset ~ Surface, data = t2)
+summary(lm.surface.upset)
+
+#Creates linear regression of Upset on best of 3 dummy variable
+lm.bestof3.upset <- lm(Upset ~ Best.of.3, data = t2)
+summary(lm.bestof3.upset)
+
+#Creates linear regression of Upset on what round it is
+lm.round.upset <- lm(Upset ~ Round, data = t2)
+summary(lm.round.upset)
+
+```
+
+
+```{r}
+#Creates multiple regresion of all independent variables used above
+lm.all.upset <- lm(Upset ~ Court + Series + Surface + Best.of.3 + Round, data = t2) 
+summary(lm.all.upset)
+```
+
+
+```{r}
+#Creates linear regression of LW.Avg.Ratio on which Series it is
+lm.series.LW.Avg.Ratio <- lm(LW.Avg.Ratio ~ Series, data = t2)
+summary(lm.series.LW.Avg.Ratio)
+
+#Creates linear regression of LW.Avg.Ratio on inside/outside
+lm.court.LW.Avg.Ratio <- lm(LW.Avg.Ratio ~ Court, data = t2)
+summary(lm.court.LW.Avg.Ratio)
+
+#Creates linear regression of LW.Avg.Ratio on which playing surface it is
+lm.surface.LW.Avg.Ratio <- lm(LW.Avg.Ratio ~ Surface, data = t2)
+summary(lm.surface.LW.Avg.Ratio)
+
+#Creates linear regression of LW.Avg.Ratio on best of 3 dummy variable
+lm.bestof3.LW.Avg.Ratio <- lm(LW.Avg.Ratio ~ Best.of.3, data = t2)
+summary(lm.bestof3.LW.Avg.Ratio)
+
+#Creates linear regression of LW.Avg.Ratio on which Round it is
+lm.round.LW.Avg.Ratio <- lm(LW.Avg.Ratio ~ Round, data = t2)
+summary(lm.round.LW.Avg.Ratio)
+```
+
+
+```{r}
+#Creates Multiple regression of LW.Avg.Ratio on which all of the above independent variable
+lm.all.LW.Avg.Ratio <- lm(LW.Avg.Ratio ~ Series + Court + Surface + Best.of.3 + Round, data = t2)
+summary(lm.all.LW.Avg.Ratio)
+```
+
+
+```{r}
+round.upset.probs <- table(t2$Round, t2$Upset)#Table of number of upsets in each round
+
+#Converts number of upsets by round to proportions of non-upsets/upsets by round in above table
+for(i in (1:8)){
+  round.total <- sum(round.upset.probs[i,])
+  round.upset.probs[i,1] <- round.upset.probs[i,1]/round.total
+  round.upset.probs[i,2] <- round.upset.probs[i,2]/round.total 
+}
+
+#Converts to a 8x2 data frame with Round and upset frequency as the two columns
+round.upset.probs <- as.data.frame(round.upset.probs)[c(14, 9:12, 13, 15, 16),c(1,3)]
+colnames(round.upset.probs) <- c("Round", "Upset.Freq")
+rownames(round.upset.probs) <- c(1:8)
+round.upset.probs
+
+#Groups by round and creates and average LW ratio by round
+round.LW.ratios <- t2 %>% group_by(Round) %>% summarize(Avg.Round.LW.Ratio = mean(LW.Avg.Ratio, na.rm = TRUE))
+
+#Reorders rows to put in chronological order
+round.LW.ratios <- round.LW.ratios[c(6,1:5,7,8),]
+round.LW.ratios
+```
+
+
+```{r}
+#Plot of upset frequencies by round, rounds in chronological order
+round.upset.plot <- ggplot(round.upset.probs, aes(x = factor(Round, levels = c("Round Robin", "1st Round", "2nd Round", "3rd Round", "4th Round", "Quarterfinals", "Semifinals", "The Final")), y = Upset.Freq))
+round.upset.plot + geom_point(size = 3) + labs(x = "Round", y = "Upset Frequency", title = "Upset Frequency of Tennis Matches by Round", subtitle = "Uses Straight Up Upsets")
+
+#Plot of LW ratios by round. Remember, lower values indicate bigger upsets. This is essentially a weighted average. Rounds are in chronological order
+round.LW.plot <- ggplot(round.LW.ratios, aes(x = factor(Round, levels = c("Round Robin", "1st Round", "2nd Round", "3rd Round", "4th Round", "Quarterfinals", "Semifinals", "The Final")), y = Avg.Round.LW.Ratio))
+round.LW.plot + geom_point(size = 3) + labs(x = "Round", y = "Average Loss/Win Betting Ratios", title = "Tennis Upset Frequencies by Round", subtitle = "Weighted by Average Odds of Losers to Victors")
+```
+
+If we are looking to make a bet on an upset, we want to go for a round with a high upset probability and a low LW ratio. With that in mind, the Quarterfinals and 1st Round look like a good place to look for trendy upset picks. On the other hand, the 4th Round looks like a desolate place to throw away money. Overall from all the regressions run, we don't explain a lot of the variance, but the one consistently significant variable is the round being played in. The LW ratio also experiences some significance with regards to which tournament type it is. Interestingly, this significance does not occur for Upset probability.
+
+```{r}
+#Retrieve and reorder the number of matches by round
+round.counts <- as.data.frame(table(t2$Round))
+colnames(round.counts) <- c("Round", "Match.Count")
+round.counts <- round.counts[c(6, 1:4, 5, 7, 8),]
+round.counts
+
+#Create a data frame with round, money potential, and matches played. Money potential is 1/LW * Upset probability. The higher this is, the better.
+mp.matrix <- matrix(nrow = 8, ncol = 3)
+mp.df <- as.data.frame(mp.matrix)
+mp.df[,1] <- round.LW.ratios$Round
+mp.df[,2] <- 1/round.LW.ratios$Avg.Round.LW.Ratio*round.upset.probs$Upset.Freq
+mp.df[,3] <- round.counts$Match.Count
+colnames(mp.df) <- c("Round", "Money.Potential", "Match.Count")
+mp.df
+
+#Create a plot of money potential by round
+round.mp.plot <- ggplot(mp.df, aes(x = factor(Round, levels = c("Round Robin", "1st Round", "2nd Round", "3rd Round", "4th Round", "Quarterfinals", "Semifinals", "The Final")), y = Money.Potential)) + geom_point(size = mp.df$Match.Count^(1/3)/2) + labs(x = "Round", y = "Money Potential", title = "Money Potential of Betting by Round", subtitle = "Potential Derived as Upset Probability Times WL Ratio") + geom_hline(yintercept = mean(mp.df$Money.Potential), color = "red", linetype = "dashed") + geom_hline(yintercept =  median(mp.df$Money.Potential), color = "blue", linetype = "dashed") + geom_text(x = 8, y = .145, label = "Median", size = 2.5) + geom_text(x = 8, y = .129, label = "Mean", size = 2.5)
+round.mp.plot
+```
+
