@@ -15,10 +15,10 @@ The purpose of this is to provide the results to the two baseline strategies:
   
 I will run this simulation seperately for each of the years from 2001 through 2017 in order to look for trends that may provide insight in how the oddsmakers have adapted over the years.
 
-#### libraries
-```{r}
+```{r include = FALSE}
 library(ggplot2)
 library(tidyr)
+library(dplyr)
 ```
 
 ### load in data
@@ -30,7 +30,7 @@ data <- data.filtered
 ### Clean Data
 ```{r}
 # only include matches that sports books took bets on
-data <- data %>% filter(countWinOdds > 0 & countLoseOdds > 0)
+data <- data %>% filter((countWinOdds > 0) & (countLoseOdds > 0))
 
 # convert 'upset' to logical
 data$upset <- as.logical(data$upset)
@@ -76,7 +76,7 @@ Upset occurs with probability 0.3283341... Hence, odds have a success rate p = 0
 
 #### Outcome Matrix
 Includes:
-  Year, strategy, net profit
+  Year, strategy, net profit, wins, tries
 ```{r}
 Year <- c(2001:2017)
 B1 <- rep("bet fav", times=17)
