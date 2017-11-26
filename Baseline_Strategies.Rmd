@@ -205,6 +205,8 @@ Result <- rbind(df1, df2)
 names(Result) <- c("Year","Strategy","Net Profit (w/ $10 bets)","# Successes","# Tries")
 
 Result
+boxplot(df1$Net[-13])
+boxplot(df2$Net[-13])
 ```
 
 #### Comments on Results
