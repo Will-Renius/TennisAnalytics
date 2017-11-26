@@ -1,0 +1,88 @@
+---
+title: "Logistic Regression"
+author: "Jacob Schmitter"
+date: "November 19, 2017"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,comment = NA)
+library(dplyr)
+library(ggplot2)
+library(arm)
+```
+
+```{r}
+load("aggregated_mens.RData")
+```
+
+```{r}
+men.data <- t2
+```
+
+
+### Logistic Regression to predict win for player
+In tennis, many factors such as the surface type and round of the tournament affect the likelihood of wining for players differently. Some players excel on a specfic surface while some players may be prone for upsets at given rounds of a tournamnent. A way we can use these factors to help estimate the chance a player winning a match to aid in how we bet on tennis is to create a logistic regression model to estimate or predict the probability of winning given a set of characteristics. Below I create a function that produces a logistic regression for a given mens tennis player which uses the variables surface, odds, and the round of the tournament to predict the outcome of a match. 
+
+```{r}
+#logistic regression with Surface + Odds+Round as predictors
+player.logistic <- function(playerName){
+  #filter data frame to games containing a specific player
+  player <- filter(men.data, Winner == playerName | Loser == playerName)
+  #remove rows with NaN in average betting odds columns
+  player <- player[!is.na(player$avgW),]
+  player <- player[!is.na(player$avgL),]
+  #create variable with outcome of game for player
+  player$Outcome <- (player$Winner == playerName)
+  player$Outcome <- as.numeric(player$Outcome)
+  #create variable for odds and rank of player 
+for(i in 1:dim(player)[1]){
+  if(((player$Outcome[i] == 1) & (player$avgW[i] < player$avgL[i]))){
+    player$Odds[i] <- player$avgW[i]
+    player$Rank[i] <- player$WRank[i]
+  }
+  else{
+    player$Odds[i] <- player$avgL[i]
+    player$Rank[i] <- player$LRank[i]
+  }
+}
+  #create logistic regression model
+  player.glm <- bayesglm(Outcome ~ Surface + Odds+Round, family=binomial, data=player)
+  return(list(player,player.glm))
+}
+```
+
+
+Below I use the function `player.logistic` to create a logistic regression to model the probability of winning for multiple players and evaluate how significant the predictors are for each player. Since each player is affected by these factors in a different manner, the model including all predictors may not be best for all player, and a simplified model using less predictors may estimate the chance of winning more effectively.
+
+```{r}
+#run function for nadal and evaluate predictors
+nadal.glm <- player.logistic("Nadal R.")[[2]]
+anova(nadal.glm,test="Chisq")
+
+#run function for federer and evaluate predictors
+federer.glm <- player.logistic("Federer R.")[[2]]
+anova(federer.glm,test="Chisq")
+```
+
+A limitation to using the logistic regression model is that get an accurate model, enough data points must be present. This means that the model not work well for many up and coming players. Also the model is striclty based upon historical performance, meaning a player that is either improving or on the decline may not be best modeled this way. Also, each player is affected by the factors in different ways and some factors being excluded from the model may make it more accurate for some players. For example surface at which the game is played on may not be as large of a factor for some players as it is for someone like Nadal on clay.
+
+### Plotting Logistic Regression for Nadal and Federer
+
+```{r}
+#use logistic regression model to plot outcome estimations for nadal
+nadal <- player.logistic("Nadal R.")[[1]]
+plotting_dfm <- expand.grid(Odds = seq(from=min(nadal$Odds), to = max(nadal$Odds), by=0.01),Surface = c("Carpet","Clay","Grass","Hard"),Round=unique(nadal$Round))
+plotting_dfm$preds <- predict.glm(nadal.glm, newdata=plotting_dfm,type = "response")
+
+ggplot(data=plotting_dfm, aes(x=Odds,y=preds,color=Surface)) + geom_line()+geom_point(data=nadal,aes(x=Odds,y=Outcome,color=Surface))+facet_wrap(~Round)+labs(title="Nadal Logistic Regression for Outcome of Match",y="Outcome of Match",x="Odds to Win Match")
+
+#use logistic regression model to plot outcome estimations for federer
+federer <- player.logistic("Federer R.")[[1]]
+plotting_dfm <- expand.grid(Odds = seq(from=min(federer$Odds), to = max(federer$Odds), by=0.01),Surface = c("Carpet","Clay","Grass","Hard"),Round=unique(federer$Round))
+plotting_dfm$preds <- predict.glm(federer.glm, newdata=plotting_dfm,type = "response")
+
+ggplot(data=plotting_dfm, aes(x=Odds,y=preds,color=Surface)) + geom_line()+geom_point(data=federer,aes(x=Odds,y=Outcome,color=Surface))+facet_wrap(~Round)+labs(title="Federer Logistic Regression for Outcome of Match",y="Outcome of Match",x="Odds to Win Match")
+```
+
