@@ -12,6 +12,9 @@ knitr::opts_chunk$set(echo = TRUE)
 The purpose of this is to provide the results to the two baseline strategies:
   1. Always betting the favorite
   2. Always betting the underdog
+  3. Randomly betting the underdog or favorite
+  4. Always betting the higher ranked player
+  5. Always betting the lower ranked player
   
 I will run this simulation seperately for each of the years from 2001 through 2017 in order to look for trends that may provide insight in how the oddsmakers have adapted over the years.
 
@@ -23,36 +26,34 @@ library(dplyr)
 
 ### load in data
 ```{r}
-load('filtered.men.data.RData')
-data <- data.filtered
+load("data/clean.men.data.RData")
+data <- final.data
+
+head(data,100)
+str(data)
 ```
 
 ### Clean Data
 ```{r}
 # only include matches that sports books took bets on
-data <- data %>% filter((countWinOdds > 0) & (countLoseOdds > 0))
+data <- data %>% filter((FcountOdds > 0) & (LcountOdds > 0))
 
-# convert 'upset' to logical
+# convert 'upset' to logical and change name: rank.upset
 data$upset <- as.logical(data$upset)
+names(data)[10] <- "rank.upset"
 
 # upset by odds variable: odds.upset
 data$odds.upset <- rep(NA, nrow(data))
 for(i in 1:nrow(data)){
-  data$odds.upset[i] <- ifelse(data$avgW[i] < data$avgL[i], FALSE, TRUE)
+  data$odds.upset[i] <- ifelse(data$favorite_won[i] == TRUE, FALSE, TRUE)
 }
 data$odds.upset <- as.logical(data$odds.upset)
 
-# new column for absolute rank difference variable: abs.rank.dif
-data <- data %>% mutate(abs.rank.dif = abs(WRank - LRank))
+# new column for absolute rank difference variable: rank.dif
+data <- data %>% mutate(rank.dif = URank - FRank)
 
-# new column for absolute odds difference variable: abs.odds.dif
-data <- data %>% mutate(abs.odds.dif = abs(avgW - avgL))
-
-# new column for odds of the favorite variable: fav.odds
-data$fav.odds <- rep(NULL, nrow(data))
-for(i in 1:nrow(data)){
-  data$fav.odds[i] <- ifelse(as.numeric(data$odds.upset[i]) == 0, data$avgW[i], data$avgL[i])
-}
+# new column for absolute odds difference variable: odds.dif
+data <- data %>% mutate(abs.odds.dif = avgU - avgF)
 
 # new column for variable: year
 data$year <- rep(NA, nrow(data))
@@ -61,7 +62,7 @@ for(i in 1:nrow(data)){
   data$year[i] <- year
 }
 
-#str(data)
+str(data)
 ```
 
 ### What is the raw probability of an upset?
@@ -81,12 +82,18 @@ Includes:
 Year <- c(2001:2017)
 B1 <- rep("bet fav", times=17)
 B2 <- rep("bet dog", times=17)
+B3 <- rep("bet random", times=17)
+B4 <- rep("bet higher rank", times=17)
+B5 <- rep("bet lower rank",times=17)
 Net <- rep(NA, times=17)
 Wins <- rep(NA, times=17)
 Tries <- rep(NA, times=17)
 
 df1 <- data.frame(Year, B1, Net, Wins, Tries)
 df2 <- data.frame(Year, B2, Net, Wins, Tries)
+df3 <- data.frame(Year, B3, Net, Wins, Tries)
+df4 <- data.frame(Year, B4, Net, Wins, Tries)
+df5 <- data.frame(Year, B5, Net, Wins, Tries)
 ```
 
 
@@ -104,8 +111,8 @@ bet.favorite <- function(df, wager = 10){
   for(i in 1:nrow(df)){
     
     # if chalk (win)
-    if(df$avgW[i] < df$avgL[i]){
-      bet.result <- wager * (df$avgW[i]-1)
+    if(df$odds.upset[i] == FALSE){
+      bet.result <- wager * (df$avgF[i]-1)
       
       net <- net + bet.result
       wins <- wins + 1
@@ -113,7 +120,7 @@ bet.favorite <- function(df, wager = 10){
     }
     
     # if upset (loss)
-    if(df$avgW[i] > df$avgL[i]){
+    if(df$odds.upset[i] == TRUE){
       bet.result <- -1*wager
       
       net <- net + bet.result
@@ -159,8 +166,8 @@ bet.underdog <- function(df, wager = 10){
   for(i in 1:nrow(df)){
     
     # if upset (win)
-    if(df$avgW[i] > df$avgL[i]){
-      bet.result <- wager * (df$avgW[i]-1)
+    if(df$odds.upset[i] == TRUE){
+      bet.result <- wager * (df$avgU[i]-1)
       
       net <- net + bet.result
       wins <- wins + 1
@@ -168,7 +175,7 @@ bet.underdog <- function(df, wager = 10){
     }
     
     # if chalk (loss)
-    if(df$avgW[i] < df$avgL[i]){
+    if(df$odds.upset[i] == FALSE){
       bet.result <- -1*wager
       
       net <- net + bet.result
@@ -199,14 +206,244 @@ df2
 
 NOTE OF CONCERN: More issues with 2013; There is no chance we should be seeing $230,000 payout on $10 underdog bets. Also, I wonder about 2012. It is the only year we notice a profit... Hmm...
 
+
+## Baseline Strategy 3: random choice of underdog/favorite
+
+#### Function for single-year simulation
+```{r}
+bet.random <- function(df, wager = 10){
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # for each match:
+  for(i in 1:nrow(df)){
+    
+    choice <- sample(c("fav","dog"),size=1)
+    
+    if(choice == "dog"){
+
+      # if upset (win)
+      if(df$odds.upset[i] == TRUE){
+        bet.result <- wager * (df$avgU[i]-1)
+        
+        net <- net + bet.result
+
+        wins <- wins + 1
+        tries <- tries + 1
+      }
+      
+      # if chalk (loss)
+      if(df$odds.upset[i] == FALSE){
+        bet.result <- -1*wager
+        
+        net <- net + bet.result
+        tries <- tries + 1
+      }
+    }
+    
+    if(choice == "fav"){
+
+      # if chalk (win)
+      if(df$odds.upset[i] == FALSE){
+        bet.result <- wager * (df$avgF[i]-1)
+  
+        net <- net + bet.result
+        wins <- wins + 1
+        tries <- tries + 1
+      }
+      
+      # if upset (loss)
+      if(df$odds.upset[i] == TRUE){
+        bet.result <- -1*wager
+        
+        net <- net + bet.result
+        tries <- tries + 1
+      }
+    }
+  }
+  
+  # output a list
+  out <- list(net, wins, tries)
+  
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+```
+
+#### Loop through all the seasons
+```{r}
+for(i in 1:length(Year)){
+  season <- data %>% filter(year == Year[i])
+  s.result <- bet.random(season, wager = 10)
+  
+  df3$Net[i] <- s.result[[1]]
+  df3$Wins[i] <- s.result[[2]]
+  df3$Tries[i] <- s.result[[3]]
+}
+names(df3)[2] <- "Strategy"
+df3
+
+#bet.random((data%>%filter(year==2017)),wager=10)
+```
+More successful than betting all underdogs. Less successful than betting all favorites. We still lose money in the end.
+
+
+## Baseline Strategy 4: always bet the higher ranked player
+
+#### Function for single-year simulation
+```{r}
+bet.highrank <- function(df, wager = 10){
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # for each match:
+  for(i in 1:nrow(df)){
+    
+    # if 'chalk' and higher rank (win)
+    if((df$rank.upset[i] == FALSE)&(df$odds.upset[i]==FALSE)){
+      bet.result <- wager * (df$avgF[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if 'dog' and higher rank (win)
+    if((df$rank.upset[i] == FALSE)&(df$odds.upset[i]==TRUE)){
+      bet.result <- wager * (df$avgU[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if 'chalk' and lower rank (loss)
+    if((df$rank.upset[i] == TRUE)&(df$odds.upset[i] == FALSE)){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+    
+    # if 'dog' and lower rank (loss)
+    if((df$rank.upset[i] == TRUE)&(df$odds.upset[i] == TRUE)){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+  }
+  
+  # output a list
+  out <- list(net, wins, tries)
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+```
+
+#### Loop through all the seasons
+```{r}
+for(i in 1:length(Year)){
+  season <- data %>% filter(year == Year[i])
+  s.result <- bet.highrank(season, wager = 10)
+  
+  df4$Net[i] <- s.result[[1]]
+  df4$Wins[i] <- s.result[[2]]
+  df4$Tries[i] <- s.result[[3]]
+}
+names(df4)[2] <- "Strategy"
+df4
+```
+I'm concerned with the amount of profit we make off this strategy. It seems far to unlikely that it would be this easy. I suspect something is wrong with the variable 'upset' in the original RData, which I have converted here to 'rank.upset'.
+
+
+## Baseline Strategy 5: always bet the lower ranked player
+
+#### Function for single-year simulation
+```{r}
+bet.lowrank <- function(df, wager = 10){
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # for each match:
+  for(i in 1:nrow(df)){
+    
+    # if 'chalk' and lower rank (win)
+    if((df$rank.upset[i] == TRUE)&(df$odds.upset[i]==FALSE)){
+      bet.result <- wager * (df$avgF[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if 'dog' and lower rank (win)
+    if((df$rank.upset[i] == TRUE)&(df$odds.upset[i]==TRUE)){
+      bet.result <- wager * (df$avgU[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if 'chalk' and higher rank (loss)
+    if((df$rank.upset[i] == FALSE)&(df$odds.upset[i] == FALSE)){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+    
+    # if 'dog' and higher rank (win)
+    if((df$rank.upset[i] == FALSE)&(df$odds.upset[i] == TRUE)){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+  }
+  
+  # output a list
+  out <- list(net, wins, tries)
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+```
+
+#### Loop through all the seasons
+```{r}
+for(i in 1:length(Year)){
+  season <- data %>% filter(year == Year[i])
+  s.result <- bet.lowrank(season, wager = 10)
+  
+  df5$Net[i] <- s.result[[1]]
+  df5$Wins[i] <- s.result[[2]]
+  df5$Tries[i] <- s.result[[3]]
+}
+names(df5)[2] <- "Strategy"
+df5
+```
+It makes sence that you wouldn't be successsful always putting your money on the lower ranked player.
+
+
+
 ## View Results
 ```{r}
-Result <- rbind(df1, df2)
+Result <- rbind(df1, df2, df3, df4, df5)
 names(Result) <- c("Year","Strategy","Net Profit (w/ $10 bets)","# Successes","# Tries")
 
 Result
 boxplot(df1$Net[-13])
 boxplot(df2$Net[-13])
+boxplot(df3$Net[-13])
+boxplot(df4$Net[-13])
+boxplot(df5$Net[-13])
 ```
 
 #### Comments on Results
