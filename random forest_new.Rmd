@@ -1,0 +1,180 @@
+---
+title: "Random Forest"
+author: "Will Renius"
+date: "November 16, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries
+```{r}
+#detach("package:stats")
+library(tidyverse)
+library(lubridate)
+```
+
+
+```{r}
+load("data/clean.men.data.RData")
+men.data <- final.data
+```
+
+```{r}
+str(men.data)
+```
+
+
+```{r}
+men.data %>% group_by(upset) %>% summarize(count = n())
+
+```
+
+
+```{r}
+train.data <- men.data %>% dplyr::filter(date.new < as.Date("2017-01-01")) %>% select(-date.new)
+test.data <- men.data %>% dplyr::filter(date.new > as.Date("2017-01-01")) %>% select(-date.new)
+#, date.new < as.Date("2018-01-01")
+```
+
+
+```{r}
+require(randomForest)
+imputed.data <- men.data
+imputed.data$favorite_won <- as.factor(imputed.data$favorite_won)
+favorite.columns <- c("B365F", "B.WF" , "CBF" , "EXF" , "LBF" , "GBF" , "IWF" , "PSF" , "SBF" , "SJF" , "UBF" )
+underdog.columns <- c("B365U", "B.WU" , "CBU" , "EXU" , "LBU" , "GBU" , "IWU" , "PSU" , "SBU" , "SJU" , "UBU")
+
+for(col.name in favorite.columns){
+  imputed.data[[col.name]][is.na(imputed.data[[col.name]])] <- imputed.data[["avgF"]][is.na(imputed.data[[col.name]])]
+}
+for(col.name in underdog.columns){
+  imputed.data[[col.name]][is.na(imputed.data[[col.name]])] <- imputed.data[["avgU"]][is.na(imputed.data[[col.name]])]
+}
+
+imputed.data <- imputed.data%>% select(-maxWinOdds, -minLoseOdds, -maxProfit, -upset)
+str(imputed.data)
+
+```
+
+
+```{r}
+new.train <- imputed.data %>% dplyr::filter(date.new < as.Date("2017-01-01"), date.new >= as.Date("2015-01-01")) %>% select(-date.new)
+# new.train <- sample_frac(train.imputed, .1, replace = F)
+iris_rf = randomForest(favorite_won~., data=new.train, ntree=200, proximity=T)
+table(predict(iris_rf), new.train$favorite_won)
+
+```
+
+```{r}
+testData <- imputed.data %>% dplyr::filter(date.new > as.Date("2010-01-01"), date.new < as.Date("2011-01-01")) %>% select(-date.new)
+
+
+iris_rf
+plot(iris_rf)
+importance(iris_rf)
+irisPred = predict(iris_rf, newdata=testData)
+table(irisPred, testData$favorite_won)
+#plot(margin(iris_rf, testData$favorite_won))
+test.pred <- testData
+test.pred$prediction <- irisPred
+str(test.pred)
+head(test.pred, 1)
+```
+
+```{r}
+test.pred <- test.pred %>% mutate(maxProfit = case_when(favorite_won == "TRUE"  ~ 100 * ( FMaxOdds - 1), favorite_won =="FALSE" ~ 100 * (UMaxOdds - 1)  , TRUE ~ NA_real_))
+
+test.pred <- test.pred %>% mutate( winnings = case_when( prediction == "FALSE" & avgU > 3 & favorite_won == prediction  ~ maxProfit * 1,  prediction == "FALSE" & avgU > 3 & favorite_won != prediction ~ -100 * 1, TRUE ~ NA_real_))
+
+sum(test.pred$winnings, na.rm = T)
+```
+
+```{r}
+#test.pred %>% group_by(maxProfit) %>% summarise(count = n())
+```
+
+```{r}
+test.pred %>% group_by(prediction, favorite_won) %>% summarize(avgF = mean(avgF), avgU = mean(avgU), n = n(), bets = sum(!is.na(winnings)), earnings = sum(winnings, na.rm = T))
+```
+
+```{r}
+naive <- test.pred %>% mutate( winnings = case_when(upset == F & countWinOdds > 0 & countLoseOdds > 0 ~ maxProfit * 1, upset != F & countWinOdds > 0 & countLoseOdds > 0 ~ -1 * 1, TRUE ~ NA_real_))
+sum(naive$winnings, na.rm = T)
+naive %>% group_by(upset, prediction) %>% summarise(sum(winnings, na.rm = TRUE))
+
+
+```
+
+
+```{r}
+CM = table(irisPred, testData$favorite_won)
+accuracy = (sum(diag(CM)))/sum(CM)
+print(CM)
+print(accuracy)
+```
+
+
+
+
+Now We have ability to predict the winner with hi
+
+```{r}
+# ```{r}
+# print(forest)
+# ```
+# ```{r}
+# newPred = predict(forest, newdata=test.imputed)
+# table(newPred, test.imputed$upset)
+# ```
+# ```{r}
+# plot(margin(forest, test.imputed$upset))
+# 
+# ```
+# ```{r}
+# CM = table(irisPred, testData$Species)
+# accuracy = (sum(diag(CM)))/sum(CM)
+# print
+# ```
+# 
+# 
+# 
+# ```{r}
+# importance(forest)
+# ```
+# 
+# ```{r}
+# #test.imputed <-  rfImpute(x = test.data, y = test.data$upset)
+# # t1 <- test.data
+# # t1[is.na(t1)] <- NaN
+# # head(t1, 1)
+# # test.imputed <-  rfImpute(upset ~ .,t1 %>% select(upset, avgW, avgL))
+# # train.imputed <- rfImpute(upset ~ .,train.data)
+# 
+# # Boston.rf=randomForest( x = select(train.imputed, -upset) , y = train.imputed$upset, xtest = select(test.imputed,-upset), ytest = test.imputed$upset)
+# # plot(Boston.rf)
+# ```
+# ```{r}
+# 
+# ```
+# 
+# ```{r}
+# #rfImpute
+# ```
+# 
+# ```{r}
+# 
+# ```
+# 
+# 
+# 
+# 
+# ```{r}
+# save(men.data, file = "men.data.RData")
+# 
+# ```
+```
+
+
