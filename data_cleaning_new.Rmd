@@ -1,0 +1,166 @@
+---
+title: "Project"
+author: "Nick Kurtansky"
+date: "11/12/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# library(ggplot2)
+# library(dplyr)
+# library(tidyr)
+# library(plyr)
+# library(stringr)
+library(tidyverse)
+library(lubridate)
+
+```
+
+### Import data
+```{r}
+d.01 <- read.csv("data/mens_years/2001.csv", header = TRUE)
+d.01$year <- rep(2001, nrow(d.01))
+
+d.02 <- read.csv("data/mens_years/2002.csv", header = TRUE)
+d.02$year <- rep(2002, nrow(d.02))
+
+d.03 <- read.csv("data/mens_years/2003.csv", header = TRUE)
+d.03$year <- rep(2003, nrow(d.03))
+
+d.04 <- read.csv("data/mens_years/2004.csv", header = TRUE)
+d.04$year <- rep(2004, nrow(d.04))
+
+d.05 <- read.csv("data/mens_years/2005.csv", header = TRUE)
+d.05$year <- rep(2005, nrow(d.05))
+
+d.06 <- read.csv("data/mens_years/2006.csv", header = TRUE)
+d.06$year <- rep(2006, nrow(d.06))
+
+d.07 <- read.csv("data/mens_years/2007.csv", header = TRUE)
+d.07$year <- rep(2007, nrow(d.07))
+
+d.08 <- read.csv("data/mens_years/2008.csv", header = TRUE)
+d.08$year <- rep(2008, nrow(d.08))
+
+d.09 <- read.csv("data/mens_years/2009.csv", header = TRUE)
+d.09$year <- rep(2009, nrow(d.09))
+
+d.10 <- read.csv("data/mens_years/2010.csv", header = TRUE)
+d.10$year <- rep(2010, nrow(d.10))
+
+d.11 <- read.csv("data/mens_years/2011.csv", header = TRUE)
+d.11$year <- rep(2011, nrow(d.11))
+
+d.12 <- read.csv("data/mens_years/2012.csv", header = TRUE)
+d.12$year <- rep(2012, nrow(d.12))
+
+d.13 <- read.csv("data/mens_years/2013.csv", header = TRUE)
+d.13$year <- rep(2013, nrow(d.13))
+d.13 <- d.13 %>% select(-c(EXW,EXL))
+
+d.14 <- read.csv("data/mens_years/2014.csv", header = TRUE)
+d.14$year <- rep(2014, nrow(d.14))
+
+d.15 <- read.csv("data/mens_years/2015.csv", header = TRUE)
+d.15$year <- rep(2015, nrow(d.15))
+
+d.16 <- read.csv("data/mens_years/2016.csv", header = TRUE)
+d.16$year <- rep(2016, nrow(d.16))
+
+d.17 <- read.csv("data/mens_years/2017.csv", header = TRUE)
+d.17$year <- rep(2017, nrow(d.17))
+
+total <- rbind.fill(d.01, d.02, d.03, d.04, d.05, d.06, d.07, d.08, d.09, d.10, d.11, d.12, d.13, d.14, d.15, d.16, d.17)
+```
+
+```{r}
+# eliminate the flaued existing maxW, maxL, avgW, avgL
+men.data <- total %>% select(-c(length(total), length(total) - 1, length(total) - 2, length(total) - 3))
+```
+
+```{r}
+#length(t2)
+#summary(t2)
+```
+
+
+
+```{r}
+win.odds.columns <- c("B365W", "B.WW" , "CBW" , "EXW" , "LBW" , "GBW" , "IWW" , "PSW" , "SBW" , "SJW" , "UBW" )
+lose.odds.columns <- c("B365L", "B.WL" , "CBL" , "EXL" , "LBL" , "GBL" , "IWL" , "PSL" , "SBL" , "SJL" , "UBL" ) 
+win.odds.col.nums <- match(win.odds.columns,names(men.data))
+lose.odds.col.nums <- match(lose.odds.columns,names(men.data))
+
+men.data %>% select(win.odds.col.nums) %>% apply(1, function(x) sum(!is.na(x))) -> men.data$countWinOdds
+
+men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) sum(!is.na(x))) -> men.data$countLoseOdds
+
+#already done double checked, avgL same values
+men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) max(x, na.rm = T) )-> men.data$maxLoseOdds
+
+men.data %>% select(win.odds.col.nums) %>% apply(1, function(x) max(x, na.rm = T) )-> men.data$maxWinOdds
+
+men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) min(x, na.rm = T) )-> men.data$minLoseOdds
+
+men.data %>% select(win.odds.col.nums) %>% apply(1, function(x) min(x, na.rm = T) )-> men.data$minWinOdds
+
+#already done double checked, avgL same values
+men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) mean(x, na.rm = T) )-> men.data$avgL
+
+men.data %>% select(win.odds.columns) %>% apply(1, function(x) mean(x, na.rm = T) )-> men.data$avgW
+
+```
+
+```{r}
+dates <- mdy(men.data$Date)
+men.data$date.new <- dates
+data.filtered <- men.data  %>% select(-W1, -L1, -W2, -L2, -W3, -L3, -W4, -L4, -W5, -L5, -Wsets, -Lsets,  -Date, -Winner, -Loser, -Comment)
+#reformat these 
+data.filtered$LRank <- as.integer(data.filtered$LRank)
+data.filtered$LPts <- as.integer(data.filtered$LPts)
+#creating new variable upset that I use as label to predict
+data.filtered <- mutate(data.filtered, rank.upset = as.factor(WRank > LRank))
+data.filtered <- mutate(data.filtered, maxProfit = (maxWinOdds - 1))
+
+str(data.filtered)
+
+winner.data <- data.filtered
+
+```
+```{r}
+save(winner.data, file = "data/winner.data.RData")
+
+```
+
+
+```{r}
+new.data <- data.filtered %>% dplyr::filter(countWinOdds>0, countLoseOdds >0)
+
+win.columns <- c("B365W", "B.WW" , "CBW" , "EXW" , "LBW" , "GBW" , "IWW" , "PSW" , "SBW" , "SJW" , "UBW", "WRank", "countWinOdds" , "avgW", "maxWinOdds", "minWinOdds")
+lose.columns <- c("B365L", "B.WL" , "CBL" , "EXL" , "LBL" , "GBL" , "IWL" , "PSL" , "SBL" , "SJL" , "UBL" , "LRank", "countLoseOdds", "avgL", "maxLoseOdds", "minLoseOdds") 
+favorite.columns <- c("B365F", "B.WF" , "CBF" , "EXF" , "LBF" , "GBF" , "IWF" , "PSF" , "SBF" , "SJF" , "UBF", "FRank", "FcountOdds","avgF", "FMaxOdds","FMinOdds" )
+underdog.columns <- c("B365U", "B.WU" , "CBU" , "EXU" , "LBU" , "GBU" , "IWU" , "PSU" , "SBU" , "SJU" , "UBU" , "URank", "LcountOdds", "avgU", "UMaxOdds", "UMinOdds")
+
+for(index in 1:length(favorite.columns)){
+  new.data[[favorite.columns[index]]] <- ifelse(new.data[["avgL"]] <= new.data[["avgW"]], new.data[[lose.columns[index]]], new.data[[win.columns[index]]])
+}
+for(index in 1: length(underdog.columns)){
+  new.data[[underdog.columns[index]]] <- ifelse(new.data[["avgL"]] > new.data[["avgW"]], new.data[[lose.columns[index]]], new.data[[win.columns[index]]])
+
+}
+new.data <- new.data %>% mutate(favorite_won = avgL > avgW)
+final.data <- new.data %>% select(-CBW, -CBL, -GBW, -GBL, -IWW, -IWL, -SBW, -SBL, -B365W, -B365L, -B.WW, -B.WL, -EXW, -EXL, -PSW, -PSL, -WPts, -LPts, - UBW, -UBL, -LBW, -LBL, -SJW, -SJL , -WRank, -LRank, -avgW, -avgL, -countWinOdds, -countLoseOdds, -maxLoseOdds, -minLoseOdds - maxWinOdds, -minWinOdds)
+#new.data[["favorite_rank"]] <- ifelse(new.data[["avgL"]] <= new.data[["avgW"]], new.data[["LRank"]], new.data[["WRank"]])
+favorite.data <- new.data
+```
+
+
+
+```{r}
+save(favorite.data, file = "data/favorite.data.RData")
+```
+
