@@ -143,7 +143,7 @@ new.data <- data.filtered %>% dplyr::filter(countWinOdds>0, countLoseOdds >0)
 win.columns <- c("B365W", "B.WW" , "CBW" , "EXW" , "LBW" , "GBW" , "IWW" , "PSW" , "SBW" , "SJW" , "UBW", "WRank", "countWinOdds" , "avgW", "maxWinOdds", "minWinOdds")
 lose.columns <- c("B365L", "B.WL" , "CBL" , "EXL" , "LBL" , "GBL" , "IWL" , "PSL" , "SBL" , "SJL" , "UBL" , "LRank", "countLoseOdds", "avgL", "maxLoseOdds", "minLoseOdds") 
 favorite.columns <- c("B365F", "B.WF" , "CBF" , "EXF" , "LBF" , "GBF" , "IWF" , "PSF" , "SBF" , "SJF" , "UBF", "FRank", "FcountOdds","avgF", "FMaxOdds","FMinOdds" )
-underdog.columns <- c("B365U", "B.WU" , "CBU" , "EXU" , "LBU" , "GBU" , "IWU" , "PSU" , "SBU" , "SJU" , "UBU" , "URank", "LcountOdds", "avgU", "UMaxOdds", "UMinOdds")
+underdog.columns <- c("B365U", "B.WU" , "CBU" , "EXU" , "LBU" , "GBU" , "IWU" , "PSU" , "SBU" , "SJU" , "UBU" , "URank", "UcountOdds", "avgU", "UMaxOdds", "UMinOdds")
 
 for(index in 1:length(favorite.columns)){
   new.data[[favorite.columns[index]]] <- ifelse(new.data[["avgL"]] <= new.data[["avgW"]], new.data[[lose.columns[index]]], new.data[[win.columns[index]]])
@@ -152,11 +152,14 @@ for(index in 1: length(underdog.columns)){
   new.data[[underdog.columns[index]]] <- ifelse(new.data[["avgL"]] > new.data[["avgW"]], new.data[[lose.columns[index]]], new.data[[win.columns[index]]])
 
 }
-new.data <- new.data %>% mutate(favorite_won = avgL > avgW)
-final.data <- new.data %>% select(-CBW, -CBL, -GBW, -GBL, -IWW, -IWL, -SBW, -SBL, -B365W, -B365L, -B.WW, -B.WL, -EXW, -EXL, -PSW, -PSL, -WPts, -LPts, - UBW, -UBL, -LBW, -LBL, -SJW, -SJL , -WRank, -LRank, -avgW, -avgL, -countWinOdds, -countLoseOdds, -maxLoseOdds, -minLoseOdds - maxWinOdds, -minWinOdds)
+favorite.data.1 <- new.data %>% mutate(favorite_won = avgL > avgW)
+favorite.data <- favorite.data.1 %>% select(-CBW, -CBL, -GBW, -GBL, -IWW, -IWL, -SBW, -SBL, -B365W, -B365L, -B.WW, -B.WL, -EXW, -EXL, -PSW, -PSL, -WPts, -LPts, - UBW, -UBL, -LBW, -LBL, -SJW, -SJL , -WRank, -LRank, -avgW, -avgL, -countWinOdds, -countLoseOdds, -maxLoseOdds, -minLoseOdds - maxWinOdds, -minWinOdds)
 #new.data[["favorite_rank"]] <- ifelse(new.data[["avgL"]] <= new.data[["avgW"]], new.data[["LRank"]], new.data[["WRank"]])
-favorite.data <- new.data
 ```
+```{r}
+str(favorite.data)
+```
+
 
 
 
