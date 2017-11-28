@@ -31,28 +31,20 @@ library(dplyr)
 
 ### load in data
 ```{r}
-load("data/clean.men.data.RData")
-data <- final.data
+load("data/favorite.data.RData")
+data <- favorite.data
 
-head(data,100)
-str(data)
+#head(data,100)
+#str(data)
 ```
 
 ### Clean Data
 ```{r}
 # only include matches that sports books took bets on
-data <- data %>% filter((FcountOdds > 0) & (LcountOdds > 0))
+data <- data %>% filter((FcountOdds > 0) & (UcountOdds > 0))
 
-# convert 'upset' to logical and change name: rank.upset
-data$upset <- as.logical(data$upset)
-names(data)[10] <- "rank.upset"
-
-# upset by odds variable: odds.upset
-data$odds.upset <- rep(NA, nrow(data))
-for(i in 1:nrow(data)){
-  data$odds.upset[i] <- ifelse(data$favorite_won[i] == TRUE, FALSE, TRUE)
-}
-data$odds.upset <- as.logical(data$odds.upset)
+# only include matches between players who have a rank
+data <- data %>% filter((!is.na(URank))&(!is.na(FRank)))
 
 # new column for absolute rank difference variable: rank.dif
 data <- data %>% mutate(rank.dif = URank - FRank)
@@ -60,23 +52,8 @@ data <- data %>% mutate(rank.dif = URank - FRank)
 # new column for absolute odds difference variable: odds.dif
 data <- data %>% mutate(abs.odds.dif = avgU - avgF)
 
-# new column for variable: year
-data$year <- rep(NA, nrow(data))
-for(i in 1:nrow(data)){
-  year <- substr(x = data$date[i], start = 1, stop = 4)
-  data$year[i] <- year
-}
-
 str(data)
-head(data,100)
-
-data %>% filter(year == 2013) #EX is still too hight
-data %>% filter(year == 2012)
-
-ggplot(data = (data %>% filter(year != 2013) %>% filter(favorite_won == FALSE)), aes(x = year, y = UMaxOdds)) + geom_boxplot() + ylim(1,5)
-
-table()
-# histogram - count odds of underdogs
+#data %>% filter(year == 2008)
 ```
 
 ### What is the raw probability of an upset?
@@ -84,7 +61,7 @@ table()
 sum(data$odds.upset/nrow(data))
 ```
 
-Upset occurs with probability 0.3283341... Hence, odds have a success rate p = 0.6716659
+Upset occurs with probability 0.2999496... Hence, odds have a success rate p = 0.7000504
 
 
 # Simulations
@@ -170,8 +147,9 @@ for(i in 1:length(Year)){
   df1$Tries[i] <- s.result[[3]]
 }
 names(df1)[2] <- "Strategy"
-#df1
+df1
 ```
+
 
 NOTE OF CONCERN:
 The year 2013 looks wrong. I know Will noticed some red-flags last week and made some adjustments, but I am still seeing issues here.
@@ -225,7 +203,7 @@ for(i in 1:length(Year)){
   df2$Tries[i] <- s.result[[3]]
 }
 names(df2)[2] <- "Strategy"
-#df2
+df2
 ```
 
 NOTE OF CONCERN: More issues with 2013; There is no chance we should be seeing $230,000 payout on $10 underdog bets. Also, I wonder about 2012. It is the only year we notice a profit... Hmm...
@@ -307,9 +285,7 @@ for(i in 1:length(Year)){
   df3$Tries[i] <- s.result[[3]]
 }
 names(df3)[2] <- "Strategy"
-#df3
-
-#bet.random((data%>%filter(year==2017)),wager=10)
+df3
 ```
 More successful than betting all underdogs. Less successful than betting all favorites. We still lose money in the end.
 
@@ -326,39 +302,45 @@ bet.highrank <- function(df, wager = 10){
   
   # for each match:
   for(i in 1:nrow(df)){
+
+    if(df$rank.upset[i] == FALSE){
+
+      # if 'chalk' and higher rank (win)
+      if(df$odds.upset[i]==FALSE){
+        bet.result <- wager * (df$avgF[i]-1)
+        
+        net <- net + bet.result
+        wins <- wins + 1
+        tries <- tries + 1
+      }
     
-    # if 'chalk' and higher rank (win)
-    if((df$rank.upset[i] == FALSE)&(df$odds.upset[i]==FALSE)){
-      bet.result <- wager * (df$avgF[i]-1)
-      
-      net <- net + bet.result
-      wins <- wins + 1
-      tries <- tries + 1
+      # if 'dog' and higher rank (win)
+      if(df$odds.upset[i]==TRUE){
+        bet.result <- wager * (df$avgU[i]-1)
+        
+        net <- net + bet.result
+        wins <- wins + 1
+        tries <- tries + 1
+      }
     }
     
-    # if 'dog' and higher rank (win)
-    if((df$rank.upset[i] == FALSE)&(df$odds.upset[i]==TRUE)){
-      bet.result <- wager * (df$avgU[i]-1)
-      
-      net <- net + bet.result
-      wins <- wins + 1
-      tries <- tries + 1
-    }
+    if(df$rank.upset[i] == TRUE){
+
+      # if 'chalk' and lower rank (loss)
+      if(df$odds.upset[i] == FALSE){
+        bet.result <- -1*wager
+        
+        net <- net + bet.result
+        tries <- tries + 1
+      }
     
-    # if 'chalk' and lower rank (loss)
-    if((df$rank.upset[i] == TRUE)&(df$odds.upset[i] == FALSE)){
-      bet.result <- -1*wager
-      
-      net <- net + bet.result
-      tries <- tries + 1
-    }
-    
-    # if 'dog' and lower rank (loss)
-    if((df$rank.upset[i] == TRUE)&(df$odds.upset[i] == TRUE)){
-      bet.result <- -1*wager
-      
-      net <- net + bet.result
-      tries <- tries + 1
+      # if 'dog' and lower rank (loss)
+      if(df$odds.upset[i] == TRUE){
+        bet.result <- -1*wager
+        
+        net <- net + bet.result
+        tries <- tries + 1
+      }
     }
   }
   
@@ -380,7 +362,7 @@ for(i in 1:length(Year)){
   df4$Tries[i] <- s.result[[3]]
 }
 names(df4)[2] <- "Strategy"
-#df4
+df4
 ```
 I'm concerned with the amount of profit we make off this strategy. It seems far to unlikely that it would be this easy. I suspect something is wrong with the variable 'upset' in the original RData, which I have converted here to 'rank.upset'.
 
@@ -451,7 +433,7 @@ for(i in 1:length(Year)){
   df5$Tries[i] <- s.result[[3]]
 }
 names(df5)[2] <- "Strategy"
-#df5
+df5
 ```
 It makes sence that you wouldn't be successsful always putting your money on the lower ranked player.
 
@@ -505,7 +487,7 @@ for(i in 1:length(Year)){
   df6$Tries[i] <- s.result[[3]]
 }
 names(df6)[2] <- "Strategy"
-#df6
+df6
 ```
 
 
@@ -558,7 +540,7 @@ for(i in 1:length(Year)){
   df7$Tries[i] <- s.result[[3]]
 }
 names(df7)[2] <- "Strategy"
-#df7
+df7
 ```
 
 
@@ -638,9 +620,7 @@ for(i in 1:length(Year)){
   df8$Tries[i] <- s.result[[3]]
 }
 names(df8)[2] <- "Strategy"
-#df8
-
-#bet.random.h((data%>%filter(year==2017)),wager=10)
+df8
 ```
 
 
@@ -710,7 +690,7 @@ for(i in 1:length(Year)){
   df9$Tries[i] <- s.result[[3]]
 }
 names(df9)[2] <- "Strategy"
-#df9
+df9
 ```
 
 
@@ -781,7 +761,7 @@ for(i in 1:length(Year)){
   df10$Tries[i] <- s.result[[3]]
 }
 names(df10)[2] <- "Strategy"
-#df10
+df10
 ```
 
 
@@ -791,17 +771,17 @@ names(df10)[2] <- "Strategy"
 Result <- rbind(df1, df2, df3, df4, df5, df6, df7, df8, df9, df10)
 names(Result) <- c("Year","Strategy","Net Profit (w/ $10 bets)","# Successes","# Tries")
 
-Result
-boxplot(df1$Net[-13])
-boxplot(df2$Net[-13])
-boxplot(df3$Net[-13])
-boxplot(df4$Net[-13])
-boxplot(df5$Net[-13])
-boxplot(df6$Net[-13])
-boxplot(df7$Net[-13])
-boxplot(df8$Net[-13])
-boxplot(df9$Net[-13])
-boxplot(df10$Net[-13])
+#Result
+boxplot(df1$Net)
+boxplot(df2$Net)
+boxplot(df3$Net)
+boxplot(df4$Net)
+boxplot(df5$Net)
+boxplot(df6$Net)
+boxplot(df7$Net)
+boxplot(df8$Net)
+boxplot(df9$Net)
+boxplot(df10$Net)
 ```
 
 #### Comments on Results

@@ -1,0 +1,2 @@
+load("/Users/nickkurtansky/Desktop/STT 301/Project/TennisAnalytics/data/favorite.data.RData")
+str(favorite.data)

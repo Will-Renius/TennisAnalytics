@@ -22,71 +22,77 @@ library(lubridate)
 
 ### Import data
 ```{r}
-d.01 <- read.csv("data/mens_years/2001.csv", header = TRUE)
+d.01 <- read.csv("data/mens_years/2001.csv", header = TRUE, stringsAsFactors = FALSE)
 d.01$year <- rep(2001, nrow(d.01))
 
-d.02 <- read.csv("data/mens_years/2002.csv", header = TRUE)
+d.02 <- read.csv("data/mens_years/2002.csv", header = TRUE, stringsAsFactors = FALSE)
 d.02$year <- rep(2002, nrow(d.02))
 
-d.03 <- read.csv("data/mens_years/2003.csv", header = TRUE)
+d.03 <- read.csv("data/mens_years/2003.csv", header = TRUE, stringsAsFactors = FALSE)
 d.03$year <- rep(2003, nrow(d.03))
 
-d.04 <- read.csv("data/mens_years/2004.csv", header = TRUE)
+d.04 <- read.csv("data/mens_years/2004.csv", header = TRUE, stringsAsFactors = FALSE)
 d.04$year <- rep(2004, nrow(d.04))
 
-d.05 <- read.csv("data/mens_years/2005.csv", header = TRUE)
+d.05 <- read.csv("data/mens_years/2005.csv", header = TRUE, stringsAsFactors = FALSE)
 d.05$year <- rep(2005, nrow(d.05))
 
-d.06 <- read.csv("data/mens_years/2006.csv", header = TRUE)
+d.06 <- read.csv("data/mens_years/2006.csv", header = TRUE, stringsAsFactors = FALSE)
 d.06$year <- rep(2006, nrow(d.06))
 
-d.07 <- read.csv("data/mens_years/2007.csv", header = TRUE)
+d.07 <- read.csv("data/mens_years/2007.csv", header = TRUE, stringsAsFactors = FALSE)
 d.07$year <- rep(2007, nrow(d.07))
 
-d.08 <- read.csv("data/mens_years/2008.csv", header = TRUE)
+d.08 <- read.csv("data/mens_years/2008.csv", header = TRUE, stringsAsFactors = FALSE)
 d.08$year <- rep(2008, nrow(d.08))
 
-d.09 <- read.csv("data/mens_years/2009.csv", header = TRUE)
+d.09 <- read.csv("data/mens_years/2009.csv", header = TRUE, stringsAsFactors = FALSE)
 d.09$year <- rep(2009, nrow(d.09))
 
-d.10 <- read.csv("data/mens_years/2010.csv", header = TRUE)
+d.10 <- read.csv("data/mens_years/2010.csv", header = TRUE, stringsAsFactors = FALSE)
 d.10$year <- rep(2010, nrow(d.10))
 
-d.11 <- read.csv("data/mens_years/2011.csv", header = TRUE)
+d.11 <- read.csv("data/mens_years/2011.csv", header = TRUE, stringsAsFactors = FALSE)
 d.11$year <- rep(2011, nrow(d.11))
 
-d.12 <- read.csv("data/mens_years/2012.csv", header = TRUE)
+d.12 <- read.csv("data/mens_years/2012.csv", header = TRUE, stringsAsFactors = FALSE)
 d.12$year <- rep(2012, nrow(d.12))
 
-d.13 <- read.csv("data/mens_years/2013.csv", header = TRUE)
+d.13 <- read.csv("data/mens_years/2013.csv", header = TRUE, stringsAsFactors = FALSE)
 d.13$year <- rep(2013, nrow(d.13))
 d.13 <- d.13 %>% select(-c(EXW,EXL))
 
-d.14 <- read.csv("data/mens_years/2014.csv", header = TRUE)
+d.14 <- read.csv("data/mens_years/2014.csv", header = TRUE, stringsAsFactors = FALSE)
 d.14$year <- rep(2014, nrow(d.14))
 
-d.15 <- read.csv("data/mens_years/2015.csv", header = TRUE)
+d.15 <- read.csv("data/mens_years/2015.csv", header = TRUE, stringsAsFactors = FALSE)
 d.15$year <- rep(2015, nrow(d.15))
 
-d.16 <- read.csv("data/mens_years/2016.csv", header = TRUE)
+d.16 <- read.csv("data/mens_years/2016.csv", header = TRUE, stringsAsFactors = FALSE)
 d.16$year <- rep(2016, nrow(d.16))
 
-d.17 <- read.csv("data/mens_years/2017.csv", header = TRUE)
+d.17 <- read.csv("data/mens_years/2017.csv", header = TRUE, stringsAsFactors = FALSE)
 d.17$year <- rep(2017, nrow(d.17))
 
 total <- rbind.fill(d.01, d.02, d.03, d.04, d.05, d.06, d.07, d.08, d.09, d.10, d.11, d.12, d.13, d.14, d.15, d.16, d.17)
+
+#total %>% filter(!is.na(CBW)) %>% select(LRank)
+str(total)
 ```
 
 ```{r}
 # eliminate the flaued existing maxW, maxL, avgW, avgL
 men.data <- total %>% select(-c(length(total), length(total) - 1, length(total) - 2, length(total) - 3))
-```
 
-```{r}
-#length(t2)
-#summary(t2)
-```
+men.data$LRank <- as.numeric(men.data$LRank)
+men.data$WRank <- as.numeric(men.data$WRank)
+men.data$LPts <- as.numeric(men.data$LPts)
+men.data$WPts <- as.numeric(men.data$WPts)
+men.data$Best.of <- as.factor(men.data$Best.of)
 
+#men.data %>% filter(!is.na(CBW)) %>% select(LRank)
+#str(men.data)
+```
 
 
 ```{r}
@@ -113,6 +119,28 @@ men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) mean(x, na.rm =
 
 men.data %>% select(win.odds.columns) %>% apply(1, function(x) mean(x, na.rm = T) )-> men.data$avgW
 
+#total %>% filter(!is.na(CBW)) %>% select(LRank)
+str(men.data)
+
+#### CHECKING FOR MISTAKES - NICK KURTANSKY
+data.check <- men.data %>% filter(!is.na(CBW)) %>% select(1,3:4,12:13,27,28,35)
+data.check
+
+data.check %>% mutate(check = ((WRank < LRank & CBW < CBL)|(WRank > LRank & CBW > CBL)))
+data.check
+
+data.check <- data.check %>% mutate(rank.upset = ifelse(WRank < LRank, FALSE, TRUE)) %>% mutate(odds.upset = ifelse(CBW < CBL, FALSE, TRUE)) %>% select(-2)
+data.check
+data.check %>% select(1,7,3,4,8,5,6,9)
+
+data.check %>% filter(year == 2001) %>% summarize(nrow(data.check %>% filter(odds.upset!=rank.upset))/nrow(data.check))
+data.check %>% filter(year == 2001) %>% summarize(nrow(data.check %>% filter(odds.upset==TRUE))/nrow(data.check))
+data.check %>% filter(year == 2001) %>% summarize(nrow(data.check %>% filter(rank.upset==TRUE))/nrow(data.check))
+
+nrow(data.check %>% filter(year == 2001) %>% filter(odds.upset!=rank.upset))
+nrow(data.check %>% filter(year == 2001) %>% filter(odds.upset==TRUE))
+nrow(data.check %>% filter(year == 2001) %>% filter(rank.upset==TRUE))
+data.check %>% select(1,7,3,4,8,5,6,9)
 ```
 
 ```{r}
@@ -125,12 +153,15 @@ data.filtered$LPts <- as.integer(data.filtered$LPts)
 #creating new variable upset that I use as label to predict
 data.filtered <- mutate(data.filtered, rank.upset = WRank > LRank)
 data.filtered <- mutate(data.filtered, maxProfit = (maxWinOdds - 1))
+
 odds.upset <- data.filtered$avgW > data.filtered$avgL
 data.filtered$odds.upset <- odds.upset
 
 str(data.filtered)
 
 winner.data <- data.filtered
+
+#data.filtered %>% filter(year == 2001) %>% summarize(nrow(data.filtered %>% filter(odds.upset!=rank.upset))/nrow(data.filtered))
 
 ```
 ```{r}
@@ -154,6 +185,8 @@ for(index in 1: length(underdog.columns)){
   new.data[[underdog.columns[index]]] <- ifelse(new.data[["avgL"]] > new.data[["avgW"]], new.data[[lose.columns[index]]], new.data[[win.columns[index]]])
 
 }
+
+
 str(new.data)
 # INVESTIGATE WHY favorite_won IS GONE
 
@@ -165,10 +198,8 @@ favorite.data <- favorite.data.1 %>% select(-CBW, -CBL, -GBW, -GBL, -IWW, -IWL, 
 
 
 ```{r}
-str(favorite.data)
+#str(favorite.data)
 ```
-
-
 
 
 ```{r}
