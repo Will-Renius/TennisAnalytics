@@ -69,6 +69,14 @@ for(i in 1:nrow(data)){
 
 str(data)
 head(data,100)
+
+data %>% filter(year == 2013) #EX is still too hight
+data %>% filter(year == 2012)
+
+ggplot(data = (data %>% filter(year != 2013) %>% filter(favorite_won == FALSE)), aes(x = year, y = UMaxOdds)) + geom_boxplot() + ylim(1,5)
+
+table()
+# histogram - count odds of underdogs
 ```
 
 ### What is the raw probability of an upset?

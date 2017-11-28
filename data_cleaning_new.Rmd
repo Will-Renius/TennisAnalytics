@@ -10,11 +10,11 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r}
-# library(ggplot2)
-# library(dplyr)
-# library(tidyr)
-# library(plyr)
-# library(stringr)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(plyr)
+library(stringr)
 library(tidyverse)
 library(lubridate)
 
@@ -123,8 +123,10 @@ data.filtered <- men.data  %>% select(-W1, -L1, -W2, -L2, -W3, -L3, -W4, -L4, -W
 data.filtered$LRank <- as.integer(data.filtered$LRank)
 data.filtered$LPts <- as.integer(data.filtered$LPts)
 #creating new variable upset that I use as label to predict
-data.filtered <- mutate(data.filtered, rank.upset = as.factor(WRank > LRank))
+data.filtered <- mutate(data.filtered, rank.upset = WRank > LRank)
 data.filtered <- mutate(data.filtered, maxProfit = (maxWinOdds - 1))
+odds.upset <- data.filtered$avgW > data.filtered$avgL
+data.filtered$odds.upset <- odds.upset
 
 str(data.filtered)
 
@@ -152,10 +154,16 @@ for(index in 1: length(underdog.columns)){
   new.data[[underdog.columns[index]]] <- ifelse(new.data[["avgL"]] > new.data[["avgW"]], new.data[[lose.columns[index]]], new.data[[win.columns[index]]])
 
 }
-favorite.data.1 <- new.data %>% mutate(favorite_won = avgL > avgW)
+str(new.data)
+# INVESTIGATE WHY favorite_won IS GONE
+
+#favorite.data.1 <- new.data %>% mutate(favorite_won = avgL > avgW)
+favorite.data.1 <- new.data
 favorite.data <- favorite.data.1 %>% select(-CBW, -CBL, -GBW, -GBL, -IWW, -IWL, -SBW, -SBL, -B365W, -B365L, -B.WW, -B.WL, -EXW, -EXL, -PSW, -PSL, -WPts, -LPts, - UBW, -UBL, -LBW, -LBL, -SJW, -SJL , -WRank, -LRank, -avgW, -avgL, -countWinOdds, -countLoseOdds, -maxLoseOdds, -minLoseOdds - maxWinOdds, -minWinOdds)
 #new.data[["favorite_rank"]] <- ifelse(new.data[["avgL"]] <= new.data[["avgW"]], new.data[["LRank"]], new.data[["WRank"]])
 ```
+
+
 ```{r}
 str(favorite.data)
 ```
