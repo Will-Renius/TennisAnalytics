@@ -1,0 +1,136 @@
+---
+title: "Simulation using Player Logistic Regressions"
+author: "Jacob Schmitter"
+date: "November 27, 2017"
+output: html_document
+---
+
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE,comment = NA)
+library(dplyr)
+library(ggplot2)
+library(arm)
+library(lubridate)
+```
+
+```{r}
+load("aggregated_mens.RData")
+```
+
+```{r}
+#load mens data and format dates column
+men.data <- t2
+dates <- mdy(men.data$Date)
+men.data$Date <- dates
+```
+
+Below I create a function that simulates betting on the 2015, 2016, and 2017 seasons for a given player when a logistic regression model predicts that they have at least a 0.8 chance of winning a given match. The logistic regression model uses the 2001 to 2014 seasons as training data for each player.
+
+```{r}
+#function that simulates betting on 2015,2016, and 2017 seasons for a given player when a logistic regression predicts they have greater than a 0.8 chance of winning.
+
+player.logistic.simulation <- function(playerName, wager=10){
+  #filter data frame to games containing a specific player and seperate into training & testing data
+  player.train <- filter(men.data, (Winner %in% playerName | Loser %in% playerName) & Date <= "2014-12-31")
+  player.test <- filter(men.data, (Winner %in% playerName | Loser %in% playerName) & Date >="2014-12-31")
+  #remove rows with NaN in average betting odds columns
+  player.train <- player.train[!is.na(player.train$avgW),]
+  player.train <- player.train[!is.na(player.train$avgL),]
+  player.test <- player.test[!is.na(player.test$avgW),]
+  player.test <- player.test[!is.na(player.test$avgL),]
+  #create variable with outcome of game for player
+  player.train$Outcome <- (player.train$Winner == playerName)
+  player.train$Outcome <- as.numeric(player.train$Outcome)
+  player.test$Outcome <- (player.test$Winner == playerName)
+  player.test$Outcome <- as.numeric(player.test$Outcome)
+  #create variable for odds and rank of player in both testing and training data frames
+for(i in 1:dim(player.train)[1]){
+  if(((player.train$Outcome[i] == 1) & (player.train$avgW[i] < player.train$avgL[i]))){
+    player.train$Odds[i] <- player.train$avgW[i]
+    player.train$Rank[i] <- player.train$WRank[i]
+  }
+  else{
+    player.train$Odds[i] <- player.train$avgL[i]
+    player.train$Rank[i] <- player.train$LRank[i]
+  }
+}
+  for(i in 1:dim(player.test)[1]){
+    if(((player.test$Outcome[i] == 1) & (player.test$avgW[i] < player.test$avgL[i]))){
+      player.test$Odds[i] <- player.test$avgW[i]
+      player.test$Rank[i] <- player.test$WRank[i]
+    }
+    else{
+      player.test$Odds[i] <- player.test$avgL[i]
+      player.test$Rank[i] <- player.test$LRank[i]
+  }
+}
+  #create logistic regression model using training data
+  player.glm <- bayesglm(Outcome ~ Surface+Odds+Round+Rank+Series, family=binomial, data=player.train,drop.unused.levels   = FALSE)
+  
+  #format testing data to be able to input into predict.glm
+  player.test <- subset(player.test, select=c("Surface","Odds","Round","Outcome","Rank","Series"))
+  prob.win <- predict.glm(player.glm, newdata=subset(player.test,select=c("Surface","Odds","Round","Rank","Series")),type = "response")
+  
+  #initliaze betting conditions
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  #simulate betting using testing data
+  for(i in 1:length(prob.win)){
+    #deciding if we bet
+    if(prob.win[i] >= 0.8){
+      #decide if we won bet and bets outcome
+      if(player.test$Outcome[i]==1){
+          bet.result <- wager * (player.test$Odds[i]-1)
+          net <- net + bet.result
+          wins <- wins + 1
+          tries <- tries + 1
+      }
+      else{
+          bet.result <- -1*wager
+          net <- net + bet.result
+          tries <- tries + 1
+      }
+    }
+  }
+  #output a list of information regarding betting simulation
+  out <- list(net, wins, tries)
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+```
+
+Since the model is based solely on historic performance, it will only work effectively on players who have a larger history for the model to be based on. Therefore, I will run the simulation on all players in the current top 15 who are ages 29 and above.
+
+```{r}
+#betting on all individuals in the current top 15 that are 29 years of age or older for the years 2015,2016,2017
+nadal <- player.logistic.simulation("Nadal R.", wager = 10)
+federer <- player.logistic.simulation("Federer R.", wager = 10)
+djokovic <- player.logistic.simulation("Djokovic N.", wager = 10)
+wawrinka <- player.logistic.simulation("Wawrinka S.", wager = 10)
+delpotro <- player.logistic.simulation("Del Potro J.M.", wager = 10)
+cilic <- player.logistic.simulation("Cilic M.", wager = 10)
+queery <- player.logistic.simulation("Querrey S.", wager = 10)
+anderson <- player.logistic.simulation("Anderson K.", wager = 10)
+tsonga <- player.logistic.simulation("Tsonga J.W.", wager = 10)
+```
+
+```{r}
+#create data frame to display all betting simulations together
+net <- c(nadal[[1]],federer[[1]],djokovic[[1]],wawrinka[[1]],delpotro[[1]],cilic[[1]],queery[[1]],anderson[[1]],tsonga[[1]])
+wins <- c(nadal[[2]],federer[[2]],djokovic[[2]],wawrinka[[2]],delpotro[[2]],cilic[[2]],queery[[2]],anderson[[2]],tsonga[[2]])
+tries <- c(nadal[[3]],federer[[3]],djokovic[[3]],wawrinka[[3]],delpotro[[3]],cilic[[3]],queery[[3]],anderson[[3]],tsonga[[3]])
+
+df <- data.frame("Net"= net,"Wins"=wins,"Tries"=tries)
+row.names(df) <- c("Rafael Nadal","Roger Federer","Novak Djokovic","Stan Wawrinka","Juan Martin del Potro","Marin Cilic","Sam Querrey","Kevin Anderson","Jo-Wilfried Tsonga")
+df["Total" ,] <- colSums(df)
+df
+```
+
+With this betting strategy, a profit would have been made on all players except for Jo-Wilfried Tsonga. The total profit would have been $461.3825.
+
+
+
