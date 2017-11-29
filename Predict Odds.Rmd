@@ -1,0 +1,91 @@
+---
+title: "Predict Odds"
+author: "Cate Capiak"
+date: "November 27, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+```
+
+```{r}
+load("clean.men.data.RData")
+data <- final.data
+
+```
+```{r}
+# new column for variable: year
+data$year <- rep(NA, nrow(data))
+for(i in 1:nrow(data)){
+  year <- substr(x = data$date[i], start = 1, stop = 4)
+  data$year[i] <- year
+}
+# convert 'Best.of' to Factor variable
+data$Best.of <- as.factor(data$Best.of)
+
+str(data)
+```
+
+```{r}
+train <- data %>% filter(!(year %in% c("2015","2016","2017")))
+test <- data %>% filter(year %in% c("2015","2016","2017"))
+
+#train$favorite_won <- as.factor(train$favorite_won)
+# Make adaptions to the training data
+#train <- train %>% filter(!(Round %in% c("1st Round","2nd Round")))
+```
+
+```{r}
+# Row-proportions: Best.of vs. favorite_won
+best.v.f <- prop.table(table(train$Best.of, train$favorite_won),1)
+best.v.f
+
+# Row-proportions: Surface vs. favorite_won
+surf.v.f <- prop.table(table(train$Surface, train$favorite_won),1)
+surf.v.f
+
+# Row-proportions: Round vs. favorite_won
+round.v.f <- prop.table(table(train$Round, train$favorite_won),1)
+round.v.f
+
+# Row-proportions: Series vs. favorite_won
+seri.v.f <- prop.table(table(train$Series, train$favorite_won),1)
+seri.v.f
+
+# Row-proportions: Court vs. favorite_won
+court.v.f <- prop.table(table(train$Court, train$favorite_won),1)
+court.v.f
+```
+
+```{r}
+#Surface vs. Favorite Won Plot
+ggplot(data = train, aes(x = favorite_won, stat = "count")) + geom_bar(aes(fill= favorite_won)) + facet_wrap(~Surface)
+
+```
+
+```{r}
+
+#Court vs. Favorite_won Plot
+ggplot(data = train, aes(x = favorite_won, stat = "count")) + geom_bar(aes(fill= favorite_won)) + facet_wrap(~Court)
+
+```
+
+```{r}
+#Round vs. Favorite_won Plot
+ggplot(data = train, aes(x = favorite_won, stat = "count")) + geom_bar(aes(fill= favorite_won)) + facet_wrap(~Round)
+```
+
+```{r}
+#Best.of vs. Favorite_won Plot
+ggplot(data = train, aes(x = favorite_won, stat = "count")) + geom_bar(aes(fill= favorite_won)) + facet_wrap(~Best.of)
+```
+
+```{r}
+#Series vs. Favorite_won Plot
+ggplot(data = train, aes(x = favorite_won, stat = "count")) + geom_bar(aes(fill= favorite_won)) + facet_wrap(~Series)
+```
+
