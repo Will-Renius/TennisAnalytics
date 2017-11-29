@@ -169,10 +169,10 @@ df.round.1 <- gather(df.round,key="chalk.dog",value="profit",c(5,6))
 df.surface.1 <- gather(df.surface,key="chalk.dog",value="profit",c(5,6))
 df.series.1 <- gather(df.series,key="chalk.dog",value="profit",c(5,6))
 
-names(df.bestof) <- c("Best.of","upset.freq","chalk.avg.odds","dog.avg.odds","chalk.potential","dog.payout.potential")
-names(df.round) <- c("Round","upset.freq","chalk.avg.odds","dog.avg.odds","chalk.potential","dog.payout.potential")
-names(df.surface) <- c("Surface","upset.freq","chalk.avg.odds","dog.avg.odds","chalk.potential","dog.payout.potential")
-names(df.series) <- c("Series","upset.freq","chalk.avg.odds","dog.avg.odds","chalk.potential","dog.payout.potential")
+names(df.bestof) <- c("Best.of","upset.freq","fav.avg.odds","dog.avg.odds","fav.potential","dog.potential")
+names(df.round) <- c("Round","upset.freq","fav.avg.odds","dog.avg.odds","fav.potential","dog.potential")
+names(df.surface) <- c("Surface","upset.freq","fav.avg.odds","dog.avg.odds","fav.potential","dog.potential")
+names(df.series) <- c("Series","upset.freq","fav.avg.odds","dog.avg.odds","fav.potential","dog.potential")
 
 df.bestof
 df.round
