@@ -1,7 +1,7 @@
 ---
 title: "Simulation using Player Logistic Regressions"
 author: "Jacob Schmitter"
-date: "November 27, 2017"
+date: "November 29, 2017"
 output: html_document
 ---
 
@@ -130,7 +130,7 @@ df["Total" ,] <- colSums(df)
 df
 ```
 
-With this betting strategy, a profit would have been made on all players except for Jo-Wilfried Tsonga. The total profit would have been $461.3825.
+With this betting strategy, a profit would have been made on all players except for Jo-Wilfried Tsonga. The total profit would have been $461.3825. This strategy may be for a person that is more risk averse when placing bets and is more selective in the games that they want to bet on. Using the logistic regression model and betting on a select few players that have historic data to model their performance makes it so the risk averse individuals can strictly bet on games that they feel more secure in winning and likely make a profit.
 
 
 
