@@ -19,8 +19,9 @@ library(tidyr)
 
 ### load in data
 ```{r}
-load('filtered.men.data.RData')
-data <- data.filtered
+data <- load('data/favorite.data.RData')
+data <- favorite.data
+str(data)
 ```
 
 
@@ -28,40 +29,14 @@ data <- data.filtered
 
 ### Clean Data
 ```{r}
-# only include matches that sports books took bets on
-data <- data %>% filter((countWinOdds > 0) & (countLoseOdds > 0))
-
-# convert 'upset' to logical
-data$upset <- as.logical(data$upset)
-
-# upset by odds variable: odds.upset
-data$odds.upset <- rep(NA, nrow(data))
-for(i in 1:nrow(data)){
-  data$odds.upset[i] <- ifelse(data$avgW[i] < data$avgL[i], FALSE, TRUE)
-}
-data$odds.upset <- as.logical(data$odds.upset)
+# only include matches that sports books took bets on and don't include Round Robins
+data <- data %>% filter((FcountOdds > 0) & (UcountOdds > 0) & Round != "Round Robin")
 
 # new column for absolute rank difference variable: abs.rank.dif
-data <- data %>% mutate(abs.rank.dif = abs(WRank - LRank))
+data <- data %>% mutate(rank.dif = URank - FRank)
 
 # new column for absolute odds difference variable: abs.odds.dif
-data <- data %>% mutate(abs.odds.dif = abs(avgW - avgL))
-
-# new column for odds of the favorite variable: fav.odds
-data$fav.odds <- rep(NULL, nrow(data))
-for(i in 1:nrow(data)){
-  data$fav.odds[i] <- ifelse(as.numeric(data$odds.upset[i]) == 0, data$avgW[i], data$avgL[i])
-}
-
-# new column for variable: year
-data$year <- rep(NA, nrow(data))
-for(i in 1:nrow(data)){
-  year <- substr(x = data$date[i], start = 1, stop = 4)
-  data$year[i] <- year
-}
-
-# convert 'Best.of' to Factor variable
-data$Best.of <- as.factor(data$Best.of)
+data <- data %>% mutate(odds.dif = avgF - avgU)
 
 str(data)
 ```
@@ -70,18 +45,15 @@ str(data)
 ```{r}
 sum(data$odds.upset/nrow(data))
 ```
-Upset occurs with probability 0.3283341... Hence, odds have a success rate p = 0.6716659
+Upset occurs with probability .30... Hence, odds have a success rate p = .70
 
 ### Training data from 2001 through 2014
 ```{r}
 train <- data %>% filter(!(year %in% c("2015","2016","2017")))
 test <- data %>% filter(year %in% c("2015","2016","2017"))
-
-# Make adaptions to the training data
-#train <- train %>% filter(!(Round %in% c("1st Round","2nd Round")))
 ```
 
-### Tables (using training data)
+### Frequency Tables
 ```{r}
 # Row-proportions: Best.of vs. odds.upset
 prop.table(table(train$Best.of, train$odds.upset),1)
@@ -96,30 +68,144 @@ prop.table(table(train$Round, train$odds.upset),1)
 prop.table(table(train$Series,train$odds.upset),1)
 ```
 
-
-### Graphs
+### Frequency Bar Graphs
 ```{r}
-ggplot(data = train, aes(x = odds.upset, y = abs.rank.dif)) + geom_boxplot(fill = "darkgreen") + labs(y = "difference in player ranks", x = "Upset") + ylim(0,200) + facet_wrap(~Round)
+my.theme <- theme(axis.text.x=element_text(face="bold",color="cyan4", size=8, angle=30), axis.text.y=element_text(face="bold",color="cyan4",size=8), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5))
 
-ggplot(data = train, aes(x = odds.upset, y = fav.odds)) + geom_boxplot(fill = "darkgreen") + labs(y = "Odds of favorite", x = "Upset") + ylim(1,2) + facet_wrap(~Round)
+# Frequency Bar Graph: Best.of vs. odds.upset
+ggplot(data=train, aes(Best.of,as.numeric(odds.upset))) + stat_summary(fun.y=mean, geom="bar",fill="orange3",width=.4) + labs(y="Frequency (%)", x="Best Of (x) Match", title="Upset Likelihood") + theme(axis.text.x=element_text(face="bold",color="cyan4", size=10), axis.text.y=element_text(face="bold",color="cyan4",size=10), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5))
 
+# Frequency Bar Graph: Surface vs. odds.upset
+ggplot(data=train, aes(Surface,as.numeric(odds.upset))) + stat_summary(fun.y=mean, geom="bar",fill="orange3",width=.4) + labs(y="Frequency (%)", x="Court Surface Type", title="Upset Likelihood") + theme(axis.text.x=element_text(face="bold",color="cyan4", size=10), axis.text.y=element_text(face="bold",color="cyan4",size=10), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5))
 
+# Frequency Bar Graph: Round vs. odds.upset
+ggplot(data=train, aes(Round,as.numeric(odds.upset))) + stat_summary(fun.y=mean, geom="bar",fill="orange3",width=.4) + labs(y="Frequency (%)", x="Round of Tournament", title="Upset Likelihood") + my.theme
 
-#plot(train$fav.odds, train$abs.rank.dif)
-
-#ggplot(data = train, aes(x = odds.upset)) + geom_bar(aes(fill = odds.upset), stat="count") +  geom_text(stat='count',aes(label=..count..),vjust=-1) + scale_y_continuous(limits = c(0,20000)) + facet_wrap(~Surface)
-
-#ggplot(data = train, aes(x = odds.upset)) + geom_bar(aes(fill = odds.upset), stat="count") +  geom_text(stat='count',aes(label=..count..),vjust=-1) + scale_y_continuous(limits = c(0,20000)) + facet_wrap(~Round)
-
-#ggplot(data = train, aes(x = odds.upset)) + geom_bar(aes(fill = odds.upset), stat="count") +  geom_text(stat='count',aes(label=..count..),vjust=-1) + scale_y_continuous(limits = c(0,20000)) + facet_wrap(~Best.of)
+# Frequency Bar Graph: Series vs. odds.upset
+ggplot(data=train, aes(Series,as.numeric(odds.upset))) + stat_summary(fun.y=mean, geom="bar",fill="orange3",width=.4) + labs(y="Frequency (%)", x="Series of Tournament", title="Upset Likelihood") + my.theme
 ```
+
+
+### Boxplot graphs
+```{r}
+my.theme <- theme(axis.text.x=element_text(face="bold",color="cyan4", size=8), axis.text.y=element_text(face="bold",color="cyan4",size=8), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5))
+
+# Rank Difference
+ggplot(data = train, aes(x = odds.upset, y = rank.dif)) + geom_boxplot(fill = "orange3") + labs(y = "Difference in Player Ranks", x = "Upset (Odds) Occured", title = "Upset Result by Difference in Rank Matchup") + ylim(1,75) + facet_wrap(~Round) + my.theme
+
+# Odds of the Favorite
+ggplot(data = train, aes(x = odds.upset, y = FMaxOdds)) + geom_boxplot(fill = "orange3") + labs(y = "Odds of Favorite", x = "Upset (Odds) Occured", title = "Upset Result by Odds of the Favorite") + ylim(1.2,1.8) + facet_wrap(~Round) + my.theme
+
+# Odds of the Underdog
+ggplot(data = train, aes(x = odds.upset, y = UMaxOdds)) + geom_boxplot(fill = "orange3") + labs(y = "Odds of Underdog", x = "Upset (Odds) Occured", title = "Upset Result Odds of the Underdog") + ylim(1.85,3.25) + facet_wrap(~Round) + my.theme
+```
+
+### Graph Winning Potential
+#### First, set up the data...
+```{r}
+detach(package:plyr)
+library(dplyr)
+
+# Row-proportions: Best.of vs. odds.upset
+df.bestof <- as.data.frame(prop.table(table(train$Best.of, train$odds.upset),1))
+names(df.bestof) <- c("Best.of", "odds.upset", "upset.freq")
+df.bestof <- df.bestof %>% filter(odds.upset == TRUE) %>% select(1,3)
+
+t1<- train %>% group_by(Best.of) %>% filter(odds.upset==FALSE) %>% summarize(chalk.avg = mean(FMaxOdds))
+t2<- train %>% group_by(Best.of) %>% filter(odds.upset==TRUE) %>% summarize(dog.avg = mean(UMaxOdds))
+df.bestof$chalk.avg.odds <- as.data.frame(t1)[,2]
+df.bestof$dog.avg.odds <- as.data.frame(t2)[,2]
+
+df.bestof <- df.bestof %>% mutate(bet.favorite = (1-upset.freq)*chalk.avg.odds, bet.underdog = (upset.freq*dog.avg.odds))
+
+
+# Row-proportions: Surface vs. odds.upset
+df.surface <- as.data.frame(prop.table(table(train$Surface, train$odds.upset),1))
+names(df.surface) <- c("Surface", "odds.upset", "upset.freq")
+df.surface <- df.surface %>% filter(odds.upset == TRUE) %>% select(1,3)
+
+t1<- train %>% group_by(Surface) %>% filter(odds.upset==FALSE) %>% summarize(chalk.avg = mean(FMaxOdds))
+t2<- train %>% group_by(Surface) %>% filter(odds.upset==TRUE) %>% summarize(dog.avg = mean(UMaxOdds))
+df.surface$chalk.avg.odds <- as.data.frame(t1)[,2]
+df.surface$dog.avg.odds <- as.data.frame(t2)[,2]
+
+df.surface <- df.surface %>% mutate(bet.favorite = (1-upset.freq)*chalk.avg.odds, bet.underdog = (upset.freq*dog.avg.odds))
+
+
+# Row-proportions: Round vs. odds.upset
+df.round <- as.data.frame(prop.table(table(train$Round, train$odds.upset),1))
+names(df.round) <- c("Round", "odds.upset", "upset.freq")
+df.round <- df.round %>% filter(odds.upset == TRUE) %>% select(1,3)
+
+t1<- train %>% group_by(Round) %>% filter(odds.upset==FALSE) %>% summarize(chalk.avg = mean(FMaxOdds))
+t2<- train %>% group_by(Round) %>% filter(odds.upset==TRUE) %>% summarize(dog.avg = mean(UMaxOdds))
+df.round$chalk.avg.odds <- as.data.frame(t1)[,2]
+df.round$dog.avg.odds <- as.data.frame(t2)[,2]
+
+df.round <- df.round %>% mutate(bet.favorite = (1-upset.freq)*chalk.avg.odds, bet.underdog = (upset.freq*dog.avg.odds))
+
+
+# Row-proportions: Series vs. odds.upset
+df.series <- as.data.frame(prop.table(table(train$Series,train$odds.upset),1))
+names(df.series) <- c("Series", "odds.upset", "upset.freq")
+df.series <- df.series %>% filter(odds.upset == TRUE) %>% select(1,3)
+
+t1<- train %>% group_by(Series) %>% filter(odds.upset==FALSE) %>% summarize(chalk.avg = mean(FMaxOdds))
+t2<- train %>% group_by(Series) %>% filter(odds.upset==TRUE) %>% summarize(dog.avg = mean(UMaxOdds))
+df.series$chalk.avg.odds <- as.data.frame(t1)[,2]
+df.series$dog.avg.odds <- as.data.frame(t2)[,2]
+
+df.series <- df.series %>% mutate(bet.favorite = (1-upset.freq)*chalk.avg.odds, bet.underdog = (upset.freq*dog.avg.odds))
+
+
+# Average dog.proft & chalk.proft for horizontal lines
+train.1 <- train %>% filter(odds.upset==FALSE)
+train.2 <- train %>% filter(odds.upset==TRUE)
+overall.chalk.profit <- mean(train.1$FMaxOdds)*mean(1-as.numeric(train$odds.upset))
+overall.dog.profit <- mean(train.2$UMaxOdds)*mean(as.numeric(train$odds.upset))
+
+df.bestof.1 <- gather(df.bestof,key="chalk.dog",value="profit",c(5,6))
+df.round.1 <- gather(df.round,key="chalk.dog",value="profit",c(5,6))
+df.surface.1 <- gather(df.surface,key="chalk.dog",value="profit",c(5,6))
+df.series.1 <- gather(df.series,key="chalk.dog",value="profit",c(5,6))
+
+names(df.bestof) <- c("Best.of","upset.freq","chalk.avg.odds","dog.avg.odds","chalk.potential","dog.payout.potential")
+names(df.round) <- c("Round","upset.freq","chalk.avg.odds","dog.avg.odds","chalk.potential","dog.payout.potential")
+names(df.surface) <- c("Surface","upset.freq","chalk.avg.odds","dog.avg.odds","chalk.potential","dog.payout.potential")
+names(df.series) <- c("Series","upset.freq","chalk.avg.odds","dog.avg.odds","chalk.potential","dog.payout.potential")
+
+df.bestof
+df.round
+df.surface
+df.series
+```
+#### Payout-Potential Graphs
+```{r}
+# theme
+my.theme <- theme(axis.text.x=element_text(face="bold",color="cyan4", size=8, angle=30), axis.text.y=element_text(face="bold",color="cyan4",size=8), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5), legend.title=element_blank())
+
+# color pallete
+my.colors <- as.character(c("chalk.profit"="lightskyblue3", "dog.profit"="orange3"))
+my.color.scale <- scale_colour_manual(name="my.colors", values=my.colors)
+
+
+# SURFACE
+ggplot(data=df.surface.1, aes(x=Surface, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + labs(title ="Net Payout Potential by Strategy & Court Type", y="Payout Potential", x = "Surface") + theme(axis.text.x=element_text(face="bold",color="cyan4", size=8), axis.text.y=element_text(face="bold",color="cyan4",size=8), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5), legend.title=element_blank()) + geom_text(x = 3.3, y = .925, label = "Overall Underdog", size = 3) + geom_text(x=3.3, y=.995, label = "Overall Favorite", size = 3)
+
+
+# ROUND
+ggplot(data=df.round.1, aes(x=Round, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + labs(title ="Net Payout Potential by Strategy & Round", y="Payout Potential", x = "Round") + my.theme + geom_text(x = 4.3, y = .93, label = "Overall Underdog", size = 3) + geom_text(x=4.3, y=1, label = "Overall Favorite", size = 3)
+
+
+# SERIES
+ggplot(data=df.series.1, aes(x=Series, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + labs(title ="Net Payout Potential by Strategy & Series", y="Payout Potential", x = "Series") + my.theme + geom_text(x = 8.7, y = .93, label = "Overall Underdog", size = 3) + geom_text(x=8.7, y=1, label = "Overall Favorite", size = 3)
+```
+
+
 
 ### Models
 ```{r}
-model.1 <- glm(odds.upset~abs.rank.dif + abs.odds.dif + Best.of + Round + Surface, family = binomial, data = train)
+model.1 <- glm(odds.upset~rank.dif + odds.dif + Best.of + Round + Surface, family = binomial, data = train)
 summary(model.1)
-
-model.2 <- glm(odds.upset~abs.rank.dif + Best.of + Round + Surface, data = train)
-summary(model.2)
 ```
 
