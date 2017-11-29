@@ -103,7 +103,7 @@ ggplot(data = train, aes(x = odds.upset, y = UMaxOdds)) + geom_boxplot(fill = "o
 ### Graph Winning Potential
 #### First, set up the data...
 ```{r}
-detach(package:plyr)
+#detach(package:plyr)
 library(dplyr)
 
 # Row-proportions: Best.of vs. odds.upset
