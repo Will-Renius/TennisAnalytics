@@ -1,0 +1,87 @@
+---
+title: "create data"
+author: "Jacob Schmitter"
+date: "November 29, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(plyr)
+library(stringr)
+library(lubridate)
+```
+
+```{r}
+d.01 <- read.csv("2001.csv", header = TRUE, stringsAsFactors = FALSE)
+d.01$year <- rep(2001, nrow(d.01))
+
+d.02 <- read.csv("2002.csv", header = TRUE, stringsAsFactors = FALSE)
+d.02$year <- rep(2002, nrow(d.02))
+
+d.03 <- read.csv("2003.csv", header = TRUE, stringsAsFactors = FALSE)
+d.03$year <- rep(2003, nrow(d.03))
+
+d.04 <- read.csv("2004.csv", header = TRUE, stringsAsFactors = FALSE)
+d.04$year <- rep(2004, nrow(d.04))
+
+d.05 <- read.csv("2005.csv", header = TRUE, stringsAsFactors = FALSE)
+d.05$year <- rep(2005, nrow(d.05))
+
+d.06 <- read.csv("2006.csv", header = TRUE, stringsAsFactors = FALSE)
+d.06$year <- rep(2006, nrow(d.06))
+
+d.07 <- read.csv("2007.csv", header = TRUE, stringsAsFactors = FALSE)
+d.07$year <- rep(2007, nrow(d.07))
+
+d.08 <- read.csv("2008.csv", header = TRUE, stringsAsFactors = FALSE)
+d.08$year <- rep(2008, nrow(d.08))
+
+d.09 <- read.csv("2009.csv", header = TRUE, stringsAsFactors = FALSE)
+d.09$year <- rep(2009, nrow(d.09))
+
+d.10 <- read.csv("2010.csv", header = TRUE, stringsAsFactors = FALSE)
+d.10$year <- rep(2010, nrow(d.10))
+
+d.11 <- read.csv("2011.csv", header = TRUE, stringsAsFactors = FALSE)
+d.11$year <- rep(2011, nrow(d.11))
+
+d.12 <- read.csv("2012.csv", header = TRUE, stringsAsFactors = FALSE)
+d.12$year <- rep(2012, nrow(d.12))
+
+d.13 <- read.csv("2013.csv", header = TRUE, stringsAsFactors = FALSE)
+d.13$year <- rep(2013, nrow(d.13))
+d.13 <-subset(d.13, select= -c(EXW,EXL))
+
+d.14 <- read.csv("2014.csv", header = TRUE, stringsAsFactors = FALSE)
+d.14$year <- rep(2014, nrow(d.14))
+
+d.15 <- read.csv("2015.csv", header = TRUE, stringsAsFactors = FALSE)
+d.15$year <- rep(2015, nrow(d.15))
+
+d.16 <- read.csv("2016.csv", header = TRUE, stringsAsFactors = FALSE)
+d.16$year <- rep(2016, nrow(d.16))
+
+d.17 <- read.csv("2017.csv", header = TRUE, stringsAsFactors = FALSE)
+d.17$year <- rep(2017, nrow(d.17))
+
+total <- rbind.fill(d.01, d.02, d.03, d.04, d.05, d.06, d.07, d.08, d.09, d.10, d.11, d.12, d.13, d.14, d.15, d.16, d.17)
+
+t2 <- subset(total,select=-c(length(total), length(total) - 1, length(total) - 2, length(total) - 3))
+
+avgW <- rep(NA,nrow(t2))
+avgL <- rep(NA,nrow(t2))
+t2$avgW <- avgW
+t2$avgL <- avgL
+for(i in 1:nrow(total)){
+  t2$avgW[i] <- mean(c(t2$CBW[i], t2$GBW[i], t2$IWW[i], t2$SBW[i], t2$B365W[i], t2$B.WW[i], t2$EXW[i], t2$PSW[i], t2$UBW[i], t2$LBW[i], t2$SJW[i]), na.rm = TRUE)
+  t2$avgL[i] <- mean(c(t2$CBL[i], t2$GBL[i], t2$IWL[i], t2$SBL[i], t2$B365L[i], t2$B.WL[i], t2$EXL[i], t2$PSL[i], t2$UBL[i], t2$LBL[i], t2$SJL[i]), na.rm = TRUE)
+}
+
+
+save(t2, file = "aggregated_mens_logistic.RData")
+```
+
