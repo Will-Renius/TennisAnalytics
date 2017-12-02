@@ -1,0 +1,267 @@
+---
+title: "Random Forest"
+author: "Will Renius"
+date: "November 16, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries
+```{r}
+#detach("package:stats")
+library(tidyverse)
+library(lubridate)
+```
+
+
+```{r}
+load("data/favorite.data.RData")
+men.data <- favorite.data
+```
+
+```{r}
+str(men.data)
+```
+
+
+```{r}
+#men.data %>% group_by(rank.upset) %>% summarize(count = n())
+
+```
+
+
+```{r}
+train.data <- men.data %>% dplyr::filter(date.new < as.Date("2017-01-01")) %>% select(-date.new)
+test.data <- men.data %>% dplyr::filter(date.new > as.Date("2017-01-01")) %>% select(-date.new)
+#, date.new < as.Date("2018-01-01")
+```
+
+
+
+
+
+```{r}
+require(randomForest)
+imputed.data <- men.data
+imputed.data$favorite_won <- as.factor(!imputed.data$odds.upset)
+character.columns <- c("Location", "Tournament", "Series", "Surface", "Court","Round" )
+for(col.name in character.columns){
+  imputed.data[[col.name]]<- as.factor(imputed.data[[col.name]])
+}
+
+favorite.columns <- c("B365F", "B.WF" , "CBF" , "EXF" , "LBF" , "GBF" , "IWF" , "PSF" , "SBF" , "SJF" , "UBF" )
+underdog.columns <- c("B365U", "B.WU" , "CBU" , "EXU" , "LBU" , "GBU" , "IWU" , "PSU" , "SBU" , "SJU" , "UBU")
+
+for(col.name in favorite.columns){
+  imputed.data[[col.name]][is.na(imputed.data[[col.name]])] <- imputed.data[["avgF"]][is.na(imputed.data[[col.name]])]
+}
+for(col.name in underdog.columns){
+  imputed.data[[col.name]][is.na(imputed.data[[col.name]])] <- imputed.data[["avgU"]][is.na(imputed.data[[col.name]])]
+}
+
+bet <- 1
+#imputed.data <- imputed.data %>% na.omit() %>% mutate(upset.payout = case_when(favorite_won == "FALSE"  ~ bet * ( UMaxOdds - 1), favorite_won =="TRUE" ~ - bet, TRUE ~ NA_real_)) %>% select(-maxWinOdds, -minLoseOdds, -maxProfit, -rank.upset, -year, -odds.upset, -Tournament, -Location, -favorite_won) 
+imputed.data <- imputed.data %>% na.omit() %>% mutate(favorite.payout = case_when(favorite_won == "TRUE"  ~ bet * ( FMaxOdds - 1), favorite_won =="FALSE" ~ -bet, TRUE ~ NA_real_)) %>% select(-maxWinOdds, -minLoseOdds, -maxProfit, -rank.upset, -year, -odds.upset, -Tournament, -Location, -favorite_won) 
+str(imputed.data)
+old.imputed.data <- imputed.data
+
+```
+
+
+```{r}
+require(randomForest)
+library(scales)
+
+```
+```{r}
+plot.winnings <- function(df, title){
+  df.new.pred <- df %>% dplyr::filter(is.finite(winnings)) %>% arrange(date.new) %>% mutate(winnings = cumsum(winnings))
+      # print(all.new.pred)
+  plot.df <- ggplot(df.new.pred, aes(date.new, winnings)) + geom_line()+ xlab("Date") + ylab("Winnings") + ggtitle(title)
+  
+  print(plot.df)
+  
+}
+```
+
+
+loop through everything
+```{r}
+
+for(i in 2005:2017){
+  train.start.date <-  paste0(i-3, "-01-01", sep = '')
+  train.end.date <- paste0(i-1, "-01-01", sep = '')
+  test.start.date <- paste0(i, "-01-01", sep = '')
+  test.end.date <- paste0(i+1, "-01-01", sep = '')
+  print(test.start.date)
+  new.train <- imputed.data %>% dplyr::filter(date.new < as.Date(train.end.date), date.new >= as.Date(train.start.date)) 
+  
+  #iris_rf = randomForest(upset.payout~., data=new.train, ntree=20, proximity=T)
+  iris_rf = randomForest(favorite.payout~., data=new.train, ntree=20, proximity=T)
+  
+  testData <- imputed.data %>% dplyr::filter(date.new > as.Date(test.start.date), date.new < as.Date(test.end.date))
+  
+  
+  
+  irisPred = predict(iris_rf, newdata=testData)
+  test.pred <- testData
+  test.pred$prediction <- irisPred
+  
+  #importance of each column
+  print(importance(iris_rf))
+  #view accuracy of predicting winner
+  # predictions <- test.pred %>% group_by(prediction, upset.payout) %>% summarize(count = n()) %>% arrange(desc(prediction))
+  predictions <- test.pred %>% group_by(prediction, favorite.payout) %>% summarize(count = n()) %>% arrange(desc(prediction))
+
+  print(predictions)
+  
+  #make bets
+  #all.pred <- test.pred %>% mutate( winnings = upset.payout) %>% dplyr::filter(prediction > 3)
+  all.pred <- test.pred %>% mutate( winnings = favorite.payout) %>% dplyr::filter(prediction > 0)
+
+  #used for making plot
+
+  plot.winnings(all.pred, paste(test.start.date, "favorite payout"))
+ 
+}
+```
+
+# Doing one by one with more info
+```{r}
+new.train <- imputed.data %>% dplyr::filter(date.new < as.Date("2017-01-01"), date.new >= as.Date("2015-01-01")) 
+# new.train <- sample_frac(train.imputed, .1, replace = F)
+
+iris_rf = randomForest(favorite_won~., data=new.train, ntree=20, proximity=T)
+table(predict(iris_rf), new.train$favorite_won)
+
+```
+```{r}
+#library(rfUtilities)
+# for(num.trees in c(10, 30, 70, 120, 200)){
+  
+# iris_rf = randomForest(favorite_won~., data=new.train, ntree=num.trees, proximity=T)
+# table(predict(iris_rf), new.train$favorite_won)
+# print(rf.crossValidation(iris_rf, new.train, p = 0.1, n = 10, seed = 1234, plot = TRUE))
+# }
+
+```
+
+
+```{r}
+testData <- imputed.data %>% dplyr::filter(date.new > as.Date("2017-01-01"), date.new < as.Date("2018-01-01"))
+
+
+iris_rf
+plot(iris_rf)
+importance(iris_rf)
+irisPred = predict(iris_rf, newdata=testData)
+table(irisPred, testData$favorite_won)
+#plot(margin(iris_rf, testData$favorite_won))
+test.pred <- testData
+test.pred$prediction <- irisPred
+str(test.pred)
+head(test.pred, 1)
+```
+
+
+
+```{r}
+bet <- 1
+test.pred <- test.pred %>% mutate(maxProfit = case_when(favorite_won == "TRUE"  ~ bet * ( FMaxOdds - 1), favorite_won =="FALSE" ~ bet * (UMaxOdds - 1)  , TRUE ~ NA_real_))
+
+test.pred <- test.pred %>% mutate( winnings = case_when(favorite_won == prediction  ~ maxProfit,  favorite_won != prediction ~ -bet, TRUE ~ NA_real_))
+
+sum(test.pred$winnings, na.rm = T)
+```
+```{r}
+library(scales)
+#str(test.pred)
+graph.pred <- test.pred %>% mutate(month = as.numeric(format(date.new, "%W"))) %>% group_by(month) %>% summarize(winnings = sum(winnings)) 
+str(graph.pred)
+ggplot(graph.pred, aes(month, winnings)) + geom_line() + xlab("date") + ylab("winnings")
+
+ggplot(graph.pred, aes(month, winnings)) + stat_summary(fun.y = sum, geom = "bar") + xlab("date") + ylab("winnings")
+
+new.pred <- test.pred %>% arrange(date.new) %>% mutate(winnings = cumsum(winnings))
+
+ggplot(new.pred, aes(date.new, winnings)) + geom_line()+ xlab("Date") + ylab("Winnings")
+```
+
+
+```{r}
+#test.pred %>% group_by(maxProfit) %>% summarise(count = n())
+```
+
+```{r}
+test.pred %>% group_by(prediction, favorite_won) %>% summarize(avgF = mean(avgF), avgU = mean(avgU), n = n(), bets = sum(!is.na(winnings)), earnings = sum(winnings, na.rm = T))
+```
+
+```{r}
+naive <- test.pred %>% mutate( winnings = case_when(upset == F & countWinOdds > 0 & countLoseOdds > 0 ~ maxProfit * 1, upset != F & countWinOdds > 0 & countLoseOdds > 0 ~ -1 * 1, TRUE ~ NA_real_))
+sum(naive$winnings, na.rm = T)
+naive %>% group_by(upset, prediction) %>% summarise(sum(winnings, na.rm = TRUE))
+
+
+```
+
+
+```{r}
+CM = table(irisPred, testData$favorite_won)
+accuracy = (sum(diag(CM)))/sum(CM)
+print(CM)
+print(accuracy)
+```
+
+
+
+
+```{r}
+
+# CODE
+
+MW=function(payouts.nbyT){
+  X=payouts.nbyT
+  P=X*0
+  n=length(X[,1])
+  choices=1:n
+  L=length(X[1,])
+  ind=rep(1,L)
+  m=rep(0,L)
+  M=rep(0,L)
+  D=rep(0,L)
+  loss.total=rep(0,L)
+  beta=1/(1+sqrt(log(n^2)/L)) 
+  P[,1]=rep(1/n,n) 
+  loss.total[1]=X[ind[1],1]  
+  m[1]=P[,1]%*%X[,1]  
+  M[1]=m[1]  
+  D[1]=P[,1]%*%(X[,1]-P[,1]%*%X[,1])^2
+  for(t in 2:L){
+    P[,t]=P[,t-1]*beta^X[,t-1]/sum(P[,t-1]*beta^X[,t-1])
+    ind[t]=sample(choices,1,replace=FALSE,P[,t])
+    loss.total[t]=loss.total[t-1]+X[ind[t],t]
+    m[t]=P[,t]%*%X[,t]
+    M[t]=M[t-1]+m[t]
+    D[t]=D[t-1]+P[,t]%*%(X[,t]-P[,t]%*%X[,t])^2  }
+  plot(1:L,ind, type="l")
+  plot(1:L,loss.total/(1:L),type="l",col="red")
+  lines(1:L,M/(1:L))
+  lines(1:L,(M+D^0.55)/(1:L),type="l",col="green")
+  lines(1:L,(M-D^0.55)/(1:L),type="l",col="green")
+  for(k in 1:n){
+    lines(1:L,cumsum(X[k,])/(1:L),type="l",col="yellow") }
+  print(loss.total[L]/L)
+  print(X%*%rep(1,L)/L)
+  print(sqrt(log(n^2)/L)+log(n)/L)
+  print(sqrt(D[L])/L) }
+
+MW(matrix(1:4000,nrow=4,ncol=1000,byrow=T)/4000) 
+
+MW(matrix(1:4000,nrow=4,ncol=1000,byrow=T)) 
+```
+
+
+

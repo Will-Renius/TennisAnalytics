@@ -18,7 +18,7 @@ library(lubridate)
 
 
 ```{r}
-load("data/filtered.men.data.RData")
+load("data/clean.men.data.RData")
 men.data <- data.filtered
 ```
 
@@ -29,7 +29,10 @@ str(men.data)
 
 ```{r}
 men.data %>% group_by(upset) %>% summarize(count = n())
+
 ```
+
+
 ```{r}
 train.data <- men.data %>% dplyr::filter(date.new < as.Date("2017-01-01")) %>% select(-date.new)
 test.data <- men.data %>% dplyr::filter(date.new > as.Date("2017-01-01")) %>% select(-date.new)
@@ -64,25 +67,37 @@ summary((imputed.data$WPts + imputed.data$LPts)/2)
 imputed.data <- imputed.data %>% 
   mutate(
     WPts=replace(WPts, !is.finite(WPts), 926), 
-    LPts=replace(LPts, !is.finite(LPts), 926)
+    LPts=replace(LPts, !is.finite(LPts), 926),
     
+    maxLoseOdds=replace(maxLoseOdds, !is.finite(maxLoseOdds), -1), 
+    maxWinOdds=replace(maxWinOdds, !is.finite(maxWinOdds), -1),
+    minLoseOdds=replace(minLoseOdds, !is.finite(minLoseOdds), -1), 
+    minWinOdds=replace(minWinOdds, !is.finite(minWinOdds), -1),
+    maxProfit=replace(maxProfit, !is.finite(maxProfit), -1)
+
     )
 str(imputed.data)
+imputed.data <- imputed.data %>% mutate(upset = avgW > avgL )
 ```
 ```{r}
 train.imputed <- imputed.data %>% dplyr::filter(date.new < as.Date("2017-01-01")) %>% select(-date.new)
 test.imputed <- imputed.data %>% dplyr::filter(date.new > as.Date("2017-01-01")) %>% select(-date.new)
 ```
 ```{r}
-forest <- randomForest( x = select(train.imputed, -upset) , y = train.imputed$upset, xtest = select(test.imputed,-upset), ytest = test.imputed$upset)
-plot(forest)
+# forest <- randomForest( x = select(train.imputed, -upset) , y = train.imputed$upset, xtest = select(test.imputed,-upset), ytest = test.imputed$upset)
+# plot(forest)
 ```
 ```{r}
 new.train <- imputed.data %>% dplyr::filter(date.new < as.Date("2017-01-01"), date.new >= as.Date("2015-01-01")) %>% select(-date.new)
 # new.train <- sample_frac(train.imputed, .1, replace = F)
 iris_rf = randomForest(upset~., data=new.train, ntree=200, proximity=T)
 table(predict(iris_rf), new.train$upset)
+
 ```
+```{r}
+print("")
+```
+
 ```{r}
 testData <- test.imputed
 iris_rf
@@ -91,8 +106,37 @@ importance(iris_rf)
 irisPred = predict(iris_rf, newdata=testData)
 table(irisPred, testData$upset)
 plot(margin(iris_rf, testData$upset))
+test.pred <- testData
+test.pred$prediction <- irisPred
+str(test.pred)
+head(test.pred, 1)
+```
+
+```{r}
+test.pred <- test.pred %>% mutate(upset.new =  avgW > avgL, upset.really.new = avgW -1 > avgL, upset.shawn = maxWinOdds > 2)
+test.pred <- test.pred %>% mutate( winnings = case_when(upset == prediction & countWinOdds > 0 & countLoseOdds > 0 ~ maxProfit * 1, upset != prediction & countWinOdds > 0 & countLoseOdds > 0 ~ -1 * 1, TRUE ~ NA_real_))
+
+sum(test.pred$winnings, na.rm = T)
+
+test.pred %>% group_by(upset.new, upset, upset.really.new, upset.shawn) %>% summarise(sum(winnings, na.rm = TRUE), count =  sum(!is.na(winnings)), avg = mean(maxWinOdds), aaavg = mean(avgW))
+# correct.pred <- test.pred %>% dplyr::filter(upset == prediction, countWinOdds > 0) %>% select(maxProfit)
+# profit <- sum(correct.pred)
+# incorrect.pred <- test.pred %>% dplyr::filter(upset != prediction, countWinOdds > 0) %>% select(maxProfit)
+# incorrect.pred
+# loss <- nrow(incorrect.pred)
+# 
+# print(profit)
+# print(loss)
+# print(profit - loss)
+```
+```{r}
+naive <- test.pred %>% mutate( winnings = case_when(upset == F & countWinOdds > 0 & countLoseOdds > 0 ~ maxProfit * 1, upset != F & countWinOdds > 0 & countLoseOdds > 0 ~ -1 * 1, TRUE ~ NA_real_))
+sum(naive$winnings, na.rm = T)
+naive %>% group_by(upset, prediction) %>% summarise(sum(winnings, na.rm = TRUE))
+
 
 ```
+
 
 ```{r}
 CM = table(irisPred, testData$upset)

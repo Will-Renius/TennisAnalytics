@@ -1,0 +1,331 @@
+---
+title: "Random Forest"
+author: "Will Renius"
+date: "November 16, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Load libraries
+```{r}
+#install.packages("fastAdaboost")
+#install.packages("randomForest")
+#install.packages("e1071")
+#detach("package:stats")
+library(tidyverse)
+library(lubridate)
+library(fastAdaboost)
+library(e1071)
+library(randomForest)
+library(scales)
+```
+
+
+```{r}
+load("data/favorite.data.RData")
+men.data <- favorite.data
+```
+
+```{r}
+str(men.data)
+```
+
+
+```{r}
+#men.data %>% group_by(rank.upset) %>% summarize(count = n())
+
+```
+
+
+```{r}
+train.data <- men.data %>% dplyr::filter(date.new < as.Date("2017-01-01")) %>% select(-date.new)
+test.data <- men.data %>% dplyr::filter(date.new > as.Date("2017-01-01")) %>% select(-date.new)
+#, date.new < as.Date("2018-01-01")
+```
+
+
+
+
+
+```{r}
+require(randomForest)
+imputed.data <- men.data
+imputed.data$favorite_won <- as.factor(!imputed.data$odds.upset)
+character.columns <- c("Location", "Tournament", "Series", "Surface", "Court","Round" )
+for(col.name in character.columns){
+  imputed.data[[col.name]]<- as.factor(imputed.data[[col.name]])
+}
+
+favorite.columns <- c("B365F", "B.WF" , "CBF" , "EXF" , "LBF" , "GBF" , "IWF" , "PSF" , "SBF" , "SJF" , "UBF" )
+underdog.columns <- c("B365U", "B.WU" , "CBU" , "EXU" , "LBU" , "GBU" , "IWU" , "PSU" , "SBU" , "SJU" , "UBU")
+
+for(col.name in favorite.columns){
+  imputed.data[[col.name]][is.na(imputed.data[[col.name]])] <- imputed.data[["avgF"]][is.na(imputed.data[[col.name]])]
+}
+for(col.name in underdog.columns){
+  imputed.data[[col.name]][is.na(imputed.data[[col.name]])] <- imputed.data[["avgU"]][is.na(imputed.data[[col.name]])]
+}
+
+imputed.data <- imputed.data %>% na.omit() %>% select(-maxWinOdds, -minLoseOdds, -maxProfit, -rank.upset, -year, -odds.upset, -Tournament, -Location)
+str(imputed.data)
+
+```
+
+
+```{r}
+plot.winnings <- function(df, title){
+  df.new.pred <- df %>% dplyr::filter(is.finite(winnings)) %>% arrange(date.new) %>% mutate(winnings = cumsum(winnings))
+      # print(all.new.pred)
+  plot.df <- ggplot(df.new.pred, aes(date.new, winnings)) + geom_line()+ xlab("Date") + ylab("Winnings") + ggtitle(title)
+  
+  print(plot.df)
+}
+```
+
+loop through everything
+```{r}
+
+for(i in 2017:2017){
+  train.start.date <-  paste0(i-3, "-01-01", sep = '')
+  train.end.date <- paste0(i-1, "-01-01", sep = '')
+  test.start.date <- paste0(i, "-01-01", sep = '')
+  test.end.date <- paste0(i+1, "-01-01", sep = '')
+  print(test.start.date)
+  
+  new.train <- imputed.data %>% dplyr::filter(date.new < as.Date(train.end.date), date.new >= as.Date(train.start.date)) 
+  
+  #Make predictive models
+  
+  #rf.model = randomForest(upset.payout~., data=new.train, ntree=20, proximity=T)
+  rf.model = randomForest(favorite_won~., data=new.train, ntree=20, proximity=T)
+  
+  #importance of each column
+  #print(importance(rf.model))
+  
+  #SVM
+  svm.model <- svm(favorite_won~., data = new.train)
+  
+  #Log Reg
+  reg.model <- glm(favorite_won ~.,family=binomial(link='logit'),data=new.train)
+  
+  #Addaboost
+  boost.model <- adaboost(favorite_won ~., new.train, nIter = 20)
+                   
+  test.data <- imputed.data %>% dplyr::filter(date.new > as.Date(test.start.date), date.new < as.Date(test.end.date))
+  print(str(test.data))
+  
+  rf.prediction = predict(rf.model, newdata=test.data)
+  svm.prediction <- predict(svm.model, test.data)
+  reg.prediction <- predict(reg.model, test.data)
+  boost.prediction <- predict( boost.model,test.data)$class
+  print(head(boost.prediction, 1))
+
+  #Make data with prediction column
+
+  #random forest
+  rf.pred <- test.data
+  rf.pred$prediction <- rf.prediction
+
+  #SVM
+  svm.pred <- test.data
+  svm.pred$prediction <- svm.prediction
+
+  #Log Regression
+  reg.pred <- test.data
+  reg.pred$prediction <- reg.prediction
+
+  #Addaboost
+  boost.pred <- test.data
+  boost.pred$prediction <- boost.prediction
+
+  #make bets
+  
+  rf.bets <- rf.pred %>% mutate( winnings = case_when(prediction != favorite_won ~-bet,
+                                             prediction == "TRUE" & favorite_won == prediction  ~ bet * (FMaxOdds -1),
+                                             prediction == "FALSE" & favorite_won == prediction ~ bet * (UMaxOdds -1),
+                                             TRUE ~ NA_real_))
+  svm.bets <- svm.pred %>% mutate( winnings = case_when(prediction != favorite_won ~-bet,
+                                             prediction == "TRUE" & favorite_won == prediction  ~ bet * (FMaxOdds -1),
+                                             prediction == "FALSE" & favorite_won == prediction ~ bet * (UMaxOdds -1),
+                                             TRUE ~ NA_real_))
+  reg.bets <- reg.pred %>% mutate( winnings = case_when(prediction != favorite_won ~-bet,
+                                             prediction == "TRUE" & favorite_won == prediction  ~ bet * (FMaxOdds -1),
+                                             prediction == "FALSE" & favorite_won == prediction ~ bet * (UMaxOdds -1),
+                                             TRUE ~ NA_real_))
+  boost.bets <- boost.pred %>% mutate( winnings = case_when(prediction != favorite_won ~-bet,
+                                             prediction == "TRUE" & favorite_won == prediction  ~ bet * (FMaxOdds -1),
+                                             prediction == "FALSE" & favorite_won == prediction ~ bet * (UMaxOdds -1),
+                                             TRUE ~ NA_real_))
+  #used for making plot
+
+  plot.winnings(rf.bets, paste(test.start.date, "Random Forest Winnings"))
+  plot.winnings(svm.bets, paste(test.start.date, "Support Vector Machine Winnings"))
+  plot.winnings(reg.bets, paste(test.start.date, "Logistic Regression Winnings"))
+  plot.winnings(boost.bets, paste(test.start.date, "AdaBoost Winnings"))
+
+
+ 
+}
+```
+
+# Doing one by one with more info
+```{r}
+new.train <- imputed.data %>% dplyr::filter(date.new < as.Date("2017-01-01"), date.new >= as.Date("2015-01-01")) 
+# new.train <- sample_frac(train.imputed, .1, replace = F)
+
+iris_rf = randomForest(favorite_won~., data=new.train, ntree=20, proximity=T)
+table(predict(iris_rf), new.train$favorite_won)
+
+```
+```{r}
+#library(rfUtilities)
+# for(num.trees in c(10, 30, 70, 120, 200)){
+  
+# iris_rf = randomForest(favorite_won~., data=new.train, ntree=num.trees, proximity=T)
+# table(predict(iris_rf), new.train$favorite_won)
+# print(rf.crossValidation(iris_rf, new.train, p = 0.1, n = 10, seed = 1234, plot = TRUE))
+# }
+
+```
+
+
+```{r}
+testData <- imputed.data %>% dplyr::filter(date.new > as.Date("2017-01-01"), date.new < as.Date("2018-01-01"))
+
+
+iris_rf
+plot(iris_rf)
+importance(iris_rf)
+irisPred = predict(iris_rf, newdata=testData)
+table(irisPred, testData$favorite_won)
+#plot(margin(iris_rf, testData$favorite_won))
+test.pred <- testData
+test.pred$prediction <- irisPred
+str(test.pred)
+head(test.pred, 1)
+```
+
+
+
+```{r}
+bet <- 1
+test.pred <- test.pred %>% mutate(maxProfit = case_when(favorite_won == "TRUE"  ~ bet * ( FMaxOdds - 1), favorite_won =="FALSE" ~ bet * (UMaxOdds - 1)  , TRUE ~ NA_real_))
+
+test.pred <- test.pred %>% mutate( winnings = case_when(favorite_won == prediction  ~ maxProfit,  favorite_won != prediction ~ -bet, TRUE ~ NA_real_))
+
+sum(test.pred$winnings, na.rm = T)
+```
+```{r}
+library(scales)
+#str(test.pred)
+graph.pred <- test.pred %>% mutate(month = as.numeric(format(date.new, "%W"))) %>% group_by(month) %>% summarize(winnings = sum(winnings)) 
+str(graph.pred)
+ggplot(graph.pred, aes(month, winnings)) + geom_line() + xlab("date") + ylab("winnings")
+
+ggplot(graph.pred, aes(month, winnings)) + stat_summary(fun.y = sum, geom = "bar") + xlab("date") + ylab("winnings")
+
+new.pred <- test.pred %>% arrange(date.new) %>% mutate(winnings = cumsum(winnings))
+
+ggplot(new.pred, aes(date.new, winnings)) + geom_line()+ xlab("Date") + ylab("Winnings")
+```
+
+
+```{r}
+#test.pred %>% group_by(maxProfit) %>% summarise(count = n())
+```
+
+```{r}
+test.pred %>% group_by(prediction, favorite_won) %>% summarize(avgF = mean(avgF), avgU = mean(avgU), n = n(), bets = sum(!is.na(winnings)), earnings = sum(winnings, na.rm = T))
+```
+
+```{r}
+naive <- test.pred %>% mutate( winnings = case_when(upset == F & countWinOdds > 0 & countLoseOdds > 0 ~ maxProfit * 1, upset != F & countWinOdds > 0 & countLoseOdds > 0 ~ -1 * 1, TRUE ~ NA_real_))
+sum(naive$winnings, na.rm = T)
+naive %>% group_by(upset, prediction) %>% summarise(sum(winnings, na.rm = TRUE))
+
+
+```
+
+
+```{r}
+CM = table(irisPred, testData$favorite_won)
+accuracy = (sum(diag(CM)))/sum(CM)
+print(CM)
+print(accuracy)
+```
+
+
+
+
+Now We have ability to predict the winner with hi
+
+```{r}
+# ```{r}
+# print(forest)
+# ```
+# ```{r}
+# newPred = predict(forest, newdata=test.imputed)
+# table(newPred, test.imputed$upset)
+# ```
+# ```{r}
+# plot(margin(forest, test.imputed$upset))
+# 
+# ```
+# ```{r}
+# CM = table(irisPred, testData$Species)
+# accuracy = (sum(diag(CM)))/sum(CM)
+# print
+# ```
+# 
+# 
+# 
+# ```{r}
+# importance(forest)
+# ```
+# 
+# ```{r}
+# #test.imputed <-  rfImpute(x = test.data, y = test.data$upset)
+# # t1 <- test.data
+# # t1[is.na(t1)] <- NaN
+# # head(t1, 1)
+# # test.imputed <-  rfImpute(upset ~ .,t1 %>% select(upset, avgW, avgL))
+# # train.imputed <- rfImpute(upset ~ .,train.data)
+# 
+# # Boston.rf=randomForest( x = select(train.imputed, -upset) , y = train.imputed$upset, xtest = select(test.imputed,-upset), ytest = test.imputed$upset)
+# # plot(Boston.rf)
+# ```
+# ```{r}
+# 
+# ```
+# 
+# ```{r}
+# #rfImpute
+# ```
+# 
+# ```{r}
+# 
+# ```
+# 
+# 
+# 
+# 
+# ```{r}
+# save(men.data, file = "men.data.RData")
+# 
+# ```
+```
+```{r}
+require(randomForest)
+library(rfUtilities)
+  data(iris)
+    iris$Species <- as.factor(iris$Species)
+      set.seed(1234)
+( rf.mdl <- randomForest(iris[,1:4], iris[,"Species"], ntree=501) )
+  ( rf.cv <- rf.crossValidation(rf.mdl, iris[,1:4], p=0.90, n=10, ntree=501) )
+```
+
+
+

@@ -18,8 +18,8 @@ library(lubridate)
 
 
 ```{r}
-load("data/clean.men.data.RData")
-men.data <- final.data
+load("data/favorite.data.RData")
+men.data <- favorite.data
 ```
 
 ```{r}
@@ -28,7 +28,7 @@ str(men.data)
 
 
 ```{r}
-men.data %>% group_by(upset) %>% summarize(count = n())
+#men.data %>% group_by(rank.upset) %>% summarize(count = n())
 
 ```
 
@@ -40,10 +40,18 @@ test.data <- men.data %>% dplyr::filter(date.new > as.Date("2017-01-01")) %>% se
 ```
 
 
+
+
+
 ```{r}
 require(randomForest)
 imputed.data <- men.data
-imputed.data$favorite_won <- as.factor(imputed.data$favorite_won)
+imputed.data$favorite_won <- as.factor(!imputed.data$odds.upset)
+character.columns <- c("Location", "Tournament", "Series", "Surface", "Court","Round" )
+for(col.name in character.columns){
+  imputed.data[[col.name]]<- as.factor(imputed.data[[col.name]])
+}
+
 favorite.columns <- c("B365F", "B.WF" , "CBF" , "EXF" , "LBF" , "GBF" , "IWF" , "PSF" , "SBF" , "SJF" , "UBF" )
 underdog.columns <- c("B365U", "B.WU" , "CBU" , "EXU" , "LBU" , "GBU" , "IWU" , "PSU" , "SBU" , "SJU" , "UBU")
 
@@ -54,22 +62,99 @@ for(col.name in underdog.columns){
   imputed.data[[col.name]][is.na(imputed.data[[col.name]])] <- imputed.data[["avgU"]][is.na(imputed.data[[col.name]])]
 }
 
-imputed.data <- imputed.data%>% select(-maxWinOdds, -minLoseOdds, -maxProfit, -upset)
+imputed.data <- imputed.data %>% na.omit() %>% select(-maxWinOdds, -minLoseOdds, -maxProfit, -rank.upset, -year, -odds.upset, -Tournament, -Location)
 str(imputed.data)
 
 ```
 
 
 ```{r}
-new.train <- imputed.data %>% dplyr::filter(date.new < as.Date("2017-01-01"), date.new >= as.Date("2015-01-01")) %>% select(-date.new)
+require(randomForest)
+library(scales)
+
+```
+```{r}
+plot.winnings <- function(df, title){
+  df.new.pred <- df %>% dplyr::filter(is.finite(winnings)) %>% arrange(date.new) %>% mutate(winnings = cumsum(winnings))
+      # print(all.new.pred)
+  plot.df <- ggplot(df.new.pred, aes(date.new, winnings)) + geom_line()+ xlab("Date") + ylab("Winnings") + ggtitle(title)
+  
+  print(plot.df)
+}
+```
+
+loop through everything
+```{r}
+
+for(i in 2017:2017){
+  train.start.date <-  paste0(i-4, "-01-01", sep = '')
+  train.end.date <- paste0(i-1, "-01-01", sep = '')
+  test.start.date <- paste0(i, "-01-01", sep = '')
+  test.end.date <- paste0(i+1, "-01-01", sep = '')
+  print(test.start.date)
+  new.train <- imputed.data %>% dplyr::filter(date.new < as.Date(train.end.date), date.new >= as.Date(train.start.date)) 
+  # new.train <- sample_frac(train.imputed, .1, replace = F)
+  
+  iris_rf = randomForest(favorite_won~., data=new.train, ntree=20, proximity=T)
+  
+  testData <- imputed.data %>% dplyr::filter(date.new > as.Date(test.start.date), date.new < as.Date(test.end.date))
+  
+  
+  
+  irisPred = predict(iris_rf, newdata=testData)
+  test.pred <- testData
+  test.pred$prediction <- irisPred
+  bet <- 10
+  test.pred <- test.pred %>% mutate(maxProfit = case_when(favorite_won == "TRUE"  ~ bet * ( FMaxOdds - 1), favorite_won =="FALSE" ~ bet * (UMaxOdds - 1)  , TRUE ~ NA_real_))
+  
+  test.pred <- test.pred %>% mutate( winnings = case_when(favorite_won == prediction  ~ maxProfit,  favorite_won != prediction ~ -bet, TRUE ~ NA_real_))
+  #importance of each column
+  print(importance(iris_rf))
+  #view accuracy of predicting winner
+  CM = table(irisPred, testData$favorite_won)
+  accuracy = (sum(diag(CM)))/sum(CM)
+  print(CM) 
+  print(accuracy)
+  
+  #make bets
+  all.pred <- test.pred %>% mutate( winnings = case_when( favorite_won == prediction  ~ maxProfit,  favorite_won != prediction ~ -bet, TRUE ~ NA_real_))
+  
+  favorite.pred <- test.pred %>% mutate( winnings = case_when(prediction == "TRUE" & favorite_won == prediction  ~ maxProfit, prediction == "TRUE" & favorite_won != prediction ~ -bet, TRUE ~ NA_real_))
+  
+  underdog.pred <- test.pred %>% mutate( winnings = case_when(prediction == "FALSE" & favorite_won == prediction  ~ maxProfit, prediction == "FALSE" & favorite_won != prediction ~ -bet, TRUE ~ NA_real_))
+  
+  super.underdog.pred <- test.pred %>% mutate( winnings = case_when(UMaxOdds > 4 & prediction == "FALSE" & favorite_won == prediction  ~ maxProfit, UMaxOdds > 4 & prediction == "FALSE" & favorite_won != prediction ~ -bet, TRUE ~ NA_real_))
+  #used for making plot
+  #plot.winnings(all.pred, paste(test.start.date, "all"))
+  #plot.winnings(underdog.pred, paste(test.start.date, "underdog"))
+  plot.winnings(super.underdog.pred, paste(test.start.date, "super underdog"))
+ 
+}
+```
+
+# Doing one by one with more info
+```{r}
+new.train <- imputed.data %>% dplyr::filter(date.new < as.Date("2017-01-01"), date.new >= as.Date("2015-01-01")) 
 # new.train <- sample_frac(train.imputed, .1, replace = F)
-iris_rf = randomForest(favorite_won~., data=new.train, ntree=200, proximity=T)
+
+iris_rf = randomForest(favorite_won~., data=new.train, ntree=20, proximity=T)
 table(predict(iris_rf), new.train$favorite_won)
 
 ```
+```{r}
+#library(rfUtilities)
+# for(num.trees in c(10, 30, 70, 120, 200)){
+  
+# iris_rf = randomForest(favorite_won~., data=new.train, ntree=num.trees, proximity=T)
+# table(predict(iris_rf), new.train$favorite_won)
+# print(rf.crossValidation(iris_rf, new.train, p = 0.1, n = 10, seed = 1234, plot = TRUE))
+# }
+
+```
+
 
 ```{r}
-testData <- imputed.data %>% dplyr::filter(date.new > as.Date("2010-01-01"), date.new < as.Date("2011-01-01")) %>% select(-date.new)
+testData <- imputed.data %>% dplyr::filter(date.new > as.Date("2017-01-01"), date.new < as.Date("2018-01-01"))
 
 
 iris_rf
@@ -84,13 +169,30 @@ str(test.pred)
 head(test.pred, 1)
 ```
 
-```{r}
-test.pred <- test.pred %>% mutate(maxProfit = case_when(favorite_won == "TRUE"  ~ 100 * ( FMaxOdds - 1), favorite_won =="FALSE" ~ 100 * (UMaxOdds - 1)  , TRUE ~ NA_real_))
 
-test.pred <- test.pred %>% mutate( winnings = case_when( prediction == "FALSE" & avgU > 3 & favorite_won == prediction  ~ maxProfit * 1,  prediction == "FALSE" & avgU > 3 & favorite_won != prediction ~ -100 * 1, TRUE ~ NA_real_))
+
+```{r}
+bet <- 1
+test.pred <- test.pred %>% mutate(maxProfit = case_when(favorite_won == "TRUE"  ~ bet * ( FMaxOdds - 1), favorite_won =="FALSE" ~ bet * (UMaxOdds - 1)  , TRUE ~ NA_real_))
+
+test.pred <- test.pred %>% mutate( winnings = case_when(favorite_won == prediction  ~ maxProfit,  favorite_won != prediction ~ -bet, TRUE ~ NA_real_))
 
 sum(test.pred$winnings, na.rm = T)
 ```
+```{r}
+library(scales)
+#str(test.pred)
+graph.pred <- test.pred %>% mutate(month = as.numeric(format(date.new, "%W"))) %>% group_by(month) %>% summarize(winnings = sum(winnings)) 
+str(graph.pred)
+ggplot(graph.pred, aes(month, winnings)) + geom_line() + xlab("date") + ylab("winnings")
+
+ggplot(graph.pred, aes(month, winnings)) + stat_summary(fun.y = sum, geom = "bar") + xlab("date") + ylab("winnings")
+
+new.pred <- test.pred %>% arrange(date.new) %>% mutate(winnings = cumsum(winnings))
+
+ggplot(new.pred, aes(date.new, winnings)) + geom_line()+ xlab("Date") + ylab("Winnings")
+```
+
 
 ```{r}
 #test.pred %>% group_by(maxProfit) %>% summarise(count = n())
@@ -176,5 +278,15 @@ Now We have ability to predict the winner with hi
 # 
 # ```
 ```
+```{r}
+require(randomForest)
+library(rfUtilities)
+  data(iris)
+    iris$Species <- as.factor(iris$Species)
+      set.seed(1234)
+( rf.mdl <- randomForest(iris[,1:4], iris[,"Species"], ntree=501) )
+  ( rf.cv <- rf.crossValidation(rf.mdl, iris[,1:4], p=0.90, n=10, ntree=501) )
+```
+
 
 

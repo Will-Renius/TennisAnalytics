@@ -36,6 +36,17 @@ men.data %>% select(win.odds.col.nums) %>% apply(1, function(x) sum(!is.na(x))) 
 
 men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) sum(!is.na(x))) -> men.data$countLoseOdds
 
+men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) sum(!is.na(x))) -> men.data$countLoseOdds
+
+#already done double checked, avgL same values
+men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) max(x, na.rm = T) )-> men.data$maxLoseOdds
+
+men.data %>% select(win.odds.col.nums) %>% apply(1, function(x) max(x, na.rm = T) )-> men.data$maxWinOdds
+
+men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) min(x, na.rm = T) )-> men.data$minLoseOdds
+
+men.data %>% select(win.odds.col.nums) %>% apply(1, function(x) min(x, na.rm = T) )-> men.data$minWinOdds
+
 #already done double checked, avgL same values
 #men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) mean(x, na.rm = T) )-> men.data$meanLoseOdds
 

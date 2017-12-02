@@ -1,0 +1,78 @@
+---
+title: "Rank Exploration"
+author: "Will Renius"
+date: "November 27, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+load packages
+```{r}
+library(tidyverse)
+library(lubridate)
+```
+
+load data
+```{r}
+load("data/clean.men.data.RData")
+men.data <- final.data
+```
+
+```{r}
+str(men.data)
+```
+```{r}
+cor(men.data$FMaxOdds, men.data$FRank)
+cor(men.data$UMaxOdds, men.data$URank)
+```
+
+```{r}
+plot(men.data$FMaxOdds, men.data$FRank)
+plot(men.data$UMaxOdds, men.data$URank)
+```
+
+```{r}
+ggplot(data=men.data,aes(x=FMaxOdds,y=FRank)) +
+  geom_point(colour='red') +
+  geom_smooth(method='lm') +
+  facet_wrap(~Series,scale='free')
+```
+
+```{r}
+men.data %>% group_by(favorite_won, FRank) %>% summarize(count = n()) %>% ggplot(data = ., aes(x = FRank, y = count)) + geom_point()
+
+ggplot(data=men.data,aes(x=FRank)) +
+  geom_histogram(colour='red') +
+  facet_wrap(~favorite_won,scale='free')
+```
+```{r}
+
+ggplot(data=men.data,aes(x=URank)) +
+  geom_histogram(colour='red') +
+  facet_wrap(~favorite_won + Series ,scale='free') 
+```
+
+```{r}
+men.data <- men.data %>% mutate(rank.diff = URank - FRank)
+```
+
+```{r}
+ggplot(data=men.data,aes(x=rank.diff)) +
+  geom_histogram(colour='red') +
+  facet_wrap(~favorite_won + Round ,scale='free')
+```
+```{r}
+#men.data %>% dplyr::filter(ATP == 68) %>% group_by(FRank, URank) %>% summarize(count = n())
+```
+```{r}
+cor(men.data$rank.diff, men.data)
+```
+
+```{r}
+men.data %>% group_by(ATP) %>% summarize(count = n())
+```
+
+
+
