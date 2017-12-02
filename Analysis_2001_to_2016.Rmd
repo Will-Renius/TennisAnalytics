@@ -1,5 +1,5 @@
 ---
-title: "Analysis of Training Data"
+title: "Analysis of Training Data & Simulation on Testing Data"
 author: "Nick Kurtansky"
 date: "11/20/2017"
 output: html_document
@@ -189,16 +189,20 @@ my.colors <- as.character(c("chalk.profit"="lightskyblue3", "dog.profit"="orange
 my.color.scale <- scale_colour_manual(name="my.colors", values=my.colors)
 
 
+# Best OF
+ggplot(data=df.bestof.1, aes(x=Best.of, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + geom_hline(yintercept=1, color = "grey") + labs(title ="Net Payout Potential by Strategy & Number of Games", y="Payout Potential (per $1 bet)", x = "Possible Games per Match") + theme(axis.text.x=element_text(face="bold",color="cyan4", size=8), axis.text.y=element_text(face="bold",color="cyan4",size=8), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5), legend.title=element_blank()) + geom_text(x = 3.3, y = .925, label = "Overall Underdog", size = 3) + geom_text(x=3.3, y=.995, label = "Overall Favorite", size = 3) + scale_y_continuous(limits = c(.8,1.05), breaks = seq(.8,1.1,.05))
+
+
 # SURFACE
-ggplot(data=df.surface.1, aes(x=Surface, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + labs(title ="Net Payout Potential by Strategy & Court Type", y="Payout Potential", x = "Surface") + theme(axis.text.x=element_text(face="bold",color="cyan4", size=8), axis.text.y=element_text(face="bold",color="cyan4",size=8), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5), legend.title=element_blank()) + geom_text(x = 3.3, y = .925, label = "Overall Underdog", size = 3) + geom_text(x=3.3, y=.995, label = "Overall Favorite", size = 3)
+ggplot(data=df.surface.1, aes(x=Surface, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + geom_hline(yintercept=1, color = "grey") + labs(title ="Net Payout Potential by Strategy & Court Type", y="Payout Potential (per $1 bet)", x = "Surface") + theme(axis.text.x=element_text(face="bold",color="cyan4", size=8), axis.text.y=element_text(face="bold",color="cyan4",size=8), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5), legend.title=element_blank()) + geom_text(x = 3.3, y = .925, label = "Overall Underdog", size = 3) + geom_text(x=3.3, y=.995, label = "Overall Favorite", size = 3) + scale_y_continuous(limits = c(.9,1.02), breaks = seq(.9,1.2,.02))
 
 
 # ROUND
-ggplot(data=df.round.1, aes(x=Round, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + labs(title ="Net Payout Potential by Strategy & Round", y="Payout Potential", x = "Round") + my.theme + geom_text(x = 4.3, y = .93, label = "Overall Underdog", size = 3) + geom_text(x=4.3, y=1, label = "Overall Favorite", size = 3)
+ggplot(data=df.round.1, aes(x=Round, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + geom_hline(yintercept=1, color = "grey") + labs(title ="Net Payout Potential by Strategy & Round", y="Payout Potential (per $1 bet)", x = "Round") + my.theme + geom_text(x = 4.3, y = .93, label = "Overall Underdog", size = 3) + geom_text(x=4.3, y=1, label = "Overall Favorite", size = 3) + scale_y_continuous(limits = c(.8,1.05), breaks = seq(.8,1.5,.04))
 
 
 # SERIES
-ggplot(data=df.series.1, aes(x=Series, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + labs(title ="Net Payout Potential by Strategy & Series", y="Payout Potential", x = "Series") + my.theme + geom_text(x = 8.7, y = .93, label = "Overall Underdog", size = 3) + geom_text(x=8.7, y=1, label = "Overall Favorite", size = 3)
+ggplot(data=df.series.1, aes(x=Series, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + geom_hline(yintercept=1, color = "grey") + labs(title ="Net Payout Potential by Strategy & Series", y="Payout Potential (per $1 bet)", x = "Series") + my.theme + geom_text(x = 8.7, y = .93, label = "Overall Underdog", size = 3) + geom_text(x=8.7, y=1, label = "Overall Favorite", size = 3) + scale_y_continuous(limits = c(.7,1.10), breaks = seq(.7,1.10,.05))
 ```
 
 
@@ -209,3 +213,133 @@ model.1 <- glm(odds.upset~rank.dif + odds.dif + Best.of + Round + Surface, famil
 summary(model.1)
 ```
 
+
+
+# Gambling Strategy Simulation
+
+### Tree Strategy
+```{r}
+nick.strategy <- function(df, wager = 10){
+
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # Vector of decision requirements - series
+  bet.fav.series <- c("Grand Slam", "International Series", "Masters Cup")
+  bet.dog.series <- c("Masters 1000")
+  # Vector of baseline betting requirements - series
+  bet.series <- c(bet.fav.series, bet.dog.series, "ATP250", "ATP500", "Masters")
+  
+  # Vector of decision requirements - game
+  bet.fav.games <- c(5)
+  bet.dog.games <- c()
+  # Vector of baseline betting requirements - game
+  bet.games <- c(bet.fav.games, 3)
+  
+  # Vector of decision requirements - surface
+  bet.fav.surface <- c("Grass")
+  bet.dog.surface <- c("Carpet")
+  # Vector of baseline betting requirements - surface
+  bet.surface <- c(bet.fav.surface, bet.dog.surface, "Hard", "Clay")
+  
+  # Vector of decision requirements - round
+  bet.fav.round <- c("4th Round", "The Final")
+  bet.dog.round <- c()
+  # Vector of baseline betting requirements - round
+  bet.round <- c(bet.fav.round,"Quarterfinals", "Semifinals")
+  
+  
+  # Loop for betting decisions
+  for(i in 1:nrow(df)){
+    
+    # Match must meet all baseline betting requirements
+    if((df$Series[i] %in% bet.series) & (df$Best.of[i] %in% bet.games) & (df$Surface[i] %in% bet.surface) & (df$Round[i] %in% bet.round)){
+    
+      
+      # BET FAVORITE if any favorite decision requirement met
+      if((df$Series[i] %in% bet.fav.series) | (df$Best.of[i] %in% bet.fav.games) | (df$Surface[i] %in% bet.fav.surface) | (df$Round[i] %in% bet.fav.round)){
+        
+        # place wager on FMaxOdds
+        
+        # if win
+        if(df$odds.upset[i] == FALSE){
+          bet.result <- wager * (df$FMaxOdds[i]-1)
+          
+          net <- net + bet.result
+          wins <- wins + 1
+          tries <- tries + 1
+        }
+        
+        #if loss
+        if(df$odds.upset[i] == TRUE){
+          bet.result <- -1*wager
+          
+          net <- net + bet.result
+          tries <- tries + 1
+        }
+      }
+      
+      # BET UNDERDOG if any underdog decision requirement met
+      if((df$Series[i] %in% bet.dog.series) | (df$Best.of[i] %in% bet.dog.games) | (df$Surface[i] %in% bet.dog.surface) | (df$Round[i] %in% bet.dog.round)){
+        
+        # place wager on UMaxOdds
+        
+        # if win
+        if(df$odds.upset[i] == TRUE){
+          bet.result <- wager * (df$UMaxOdds[i]-1)
+          
+          net <- net + bet.result
+          wins <- wins + 1
+          tries <- tries + 1
+        }
+        
+        #if loss
+        if(df$odds.upset[i] == FALSE){
+          bet.result <- -1*wager
+          
+          net <- net + bet.result
+          tries <- tries + 1
+        }
+      }
+    }
+  }
+  
+  
+  # RETURN LIST
+  out <- list(net, wins, tries)
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+```
+
+### Loop simulation through 2015, 2016, 2017
+```{r}
+YEARS <- unique(test$year)
+Net <- rep(NA, times=3)
+Wins <- rep(NA, times=3)
+Tries <- rep(NA, times=3)
+
+sim <- data.frame(YEARS, Net, Wins, Tries)
+
+for(i in 1:length(YEARS)){
+  season <- test %>% filter(year == YEARS[i])
+  s.result <- nick.strategy(season, wager = 10)
+  
+  sim$Net[i] <- s.result[[1]]
+  sim$Wins[i] <- s.result[[2]]
+  sim$Tries[i] <- s.result[[3]]
+}
+names(sim)[1] <- "Year"
+sim
+```
+
+## Graph of Simulation Results
+```{r}
+# theme
+my.theme <- theme(axis.text.x=element_text(face="bold",color="cyan4", size=10), axis.text.y=element_text(face="bold",color="cyan4",size=10), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5), legend.title=element_blank(), plot.subtitle = element_text(face="bold", color="royalblue4", size=10, hjust=.5))
+
+# ggplot
+ggplot(data=sim, aes(x=Year, y=Net)) + stat_summary(fun.y=mean, geom="bar", fill="orange3") + labs(x="Year", y="Net Result ($10 Wagers)", title="Conditional Betting Strategy", subtitle="From Most Favorable Book") + my.theme
+```

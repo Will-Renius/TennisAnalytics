@@ -164,8 +164,9 @@ winner.data <- data.filtered
 #data.filtered %>% filter(year == 2001) %>% summarize(nrow(data.filtered %>% filter(odds.upset!=rank.upset))/nrow(data.filtered))
 
 ```
+
 ```{r}
-save(winner.data, file = "data/winner.data.RData")
+#save(winner.data, file = "data/winner.data.RData")
 
 ```
 
@@ -199,10 +200,13 @@ favorite.data <- favorite.data.1 %>% select(-CBW, -CBL, -GBW, -GBL, -IWW, -IWL, 
 
 ```{r}
 #str(favorite.data)
+nrow(favorite.data %>% filter(year==2017 & rank.upset == odds.upset))/nrow(favorite.data %>% filter(year==2017))
+
+favorite.data %>% group_by(year, FMaxOdds, UMaxOdds, odds.upset) %>% summarise(year, mean(FMaxOdds), mean(UMaxOdds), mean(as.numeric(odds.upset)))
 ```
 
 
 ```{r}
-save(favorite.data, file = "data/favorite.data.RData")
+#save(favorite.data, file = "data/favorite.data.RData")
 ```
 
