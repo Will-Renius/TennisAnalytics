@@ -14,7 +14,7 @@ library(arm)
 ```
 
 ```{r}
-load("aggregated_mens.RData")
+load("aggregated_mens_logistic.RData")
 ```
 
 ```{r}
@@ -38,7 +38,7 @@ player.logistic <- function(playerName){
   player$Outcome <- as.numeric(player$Outcome)
   #create variable for odds and rank of player 
 for(i in 1:dim(player)[1]){
-  if(((player$Outcome[i] == 1) & (player$avgW[i] < player$avgL[i]))){
+  if((player$Outcome[i] == 1)){
     player$Odds[i] <- player$avgW[i]
     player$Rank[i] <- player$WRank[i]
   }
@@ -47,6 +47,9 @@ for(i in 1:dim(player)[1]){
     player$Rank[i] <- player$LRank[i]
   }
 }
+  player$Surface <- as.factor(player$Surface)
+  player$Round <- as.factor(player$Round)
+
   #create logistic regression model
   player.glm <- bayesglm(Outcome ~ Surface + Odds+Round, family=binomial, data=player)
   return(list(player,player.glm))
@@ -70,19 +73,21 @@ A limitation to using the logistic regression model is that get an accurate mode
 
 ### Plotting Logistic Regression for Nadal and Federer
 
-```{r}
+```{r, warning =FALSE}
 #use logistic regression model to plot outcome estimations for nadal
 nadal <- player.logistic("Nadal R.")[[1]]
 plotting_dfm <- expand.grid(Odds = seq(from=min(nadal$Odds), to = max(nadal$Odds), by=0.01),Surface = c("Carpet","Clay","Grass","Hard"),Round=unique(nadal$Round))
 plotting_dfm$preds <- predict.glm(nadal.glm, newdata=plotting_dfm,type = "response")
 
-ggplot(data=plotting_dfm, aes(x=Odds,y=preds,color=Surface)) + geom_line()+geom_point(data=nadal,aes(x=Odds,y=Outcome,color=Surface))+facet_wrap(~Round)+labs(title="Nadal Logistic Regression for Outcome of Match",y="Outcome of Match",x="Odds to Win Match")
+ggplot(data=plotting_dfm, aes(x=Odds,y=preds,color=Surface)) + geom_line()+geom_point(data=nadal,aes(x=Odds,y=Outcome,color=Surface))+facet_wrap(~Round)+labs(title="Nadal Logistic Regression for Outcome of Match",y="Outcome of Match",x="Odds to Win Match")+scale_x_continuous(limits = c(1,3))
+
 
 #use logistic regression model to plot outcome estimations for federer
 federer <- player.logistic("Federer R.")[[1]]
 plotting_dfm <- expand.grid(Odds = seq(from=min(federer$Odds), to = max(federer$Odds), by=0.01),Surface = c("Carpet","Clay","Grass","Hard"),Round=unique(federer$Round))
 plotting_dfm$preds <- predict.glm(federer.glm, newdata=plotting_dfm,type = "response")
 
-ggplot(data=plotting_dfm, aes(x=Odds,y=preds,color=Surface)) + geom_line()+geom_point(data=federer,aes(x=Odds,y=Outcome,color=Surface))+facet_wrap(~Round)+labs(title="Federer Logistic Regression for Outcome of Match",y="Outcome of Match",x="Odds to Win Match")
+ggplot(data=plotting_dfm, aes(x=Odds,y=preds,color=Surface)) + geom_line()+geom_point(data=federer,aes(x=Odds,y=Outcome,color=Surface))+facet_wrap(~Round)+labs(title="Federer Logistic Regression for Outcome of Match",y="Outcome of Match",x="Odds to Win Match")+scale_x_continuous(limits = c(1,3))
+
 ```
 
