@@ -151,9 +151,6 @@ df1
 ```
 
 
-NOTE OF CONCERN:
-The year 2013 looks wrong. I know Will noticed some red-flags last week and made some adjustments, but I am still seeing issues here.
-
 ## Baseline Strategy 2: always bet underdog (average book)
 
 #### Function for single-year simulation
@@ -205,8 +202,6 @@ for(i in 1:length(Year)){
 names(df2)[2] <- "Strategy"
 df2
 ```
-
-NOTE OF CONCERN: More issues with 2013; There is no chance we should be seeing $230,000 payout on $10 underdog bets. Also, I wonder about 2012. It is the only year we notice a profit... Hmm...
 
 
 ## Baseline Strategy 3: random choice of underdog/favorite (average book)
@@ -364,7 +359,6 @@ for(i in 1:length(Year)){
 names(df4)[2] <- "Strategy"
 df4
 ```
-I'm concerned with the amount of profit we make off this strategy. It seems far to unlikely that it would be this easy. I suspect something is wrong with the variable 'upset' in the original RData, which I have converted here to 'rank.upset'.
 
 
 ## Baseline Strategy 5: always bet the lower ranked player (average book)
@@ -770,20 +764,30 @@ df10
 ```{r}
 Result <- rbind(df1, df2, df3, df4, df5, df6, df7, df8, df9, df10)
 names(Result) <- c("Year","Strategy","Net Profit (w/ $10 bets)","# Successes","# Tries")
-
-#Result
-boxplot(df1$Net)
-boxplot(df2$Net)
-boxplot(df3$Net)
-boxplot(df4$Net)
-boxplot(df5$Net)
-boxplot(df6$Net)
-boxplot(df7$Net)
-boxplot(df8$Net)
-boxplot(df9$Net)
-boxplot(df10$Net)
 ```
+
+## Graph of Simulations
+```{r}
+# theme
+my.theme <- theme(axis.text.x=element_text(face="bold",color="cyan4", size=10), axis.text.y=element_text(face="bold",color="cyan4",size=10), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5), legend.title=element_blank(), plot.subtitle = element_text(face="bold", color="royalblue4", size=10, hjust=.5))
+
+# Favorite
+ggplot(data=df6, aes(x=Year, y=Net)) + stat_summary(fun.y=mean, geom="bar", fill="orange3") + labs(x="Year", y="Net Result ($10 Wagers)", title="Baseline Strategy: Always Betting the Favorite", subtitle="From Most Favorable Book") + my.theme
+
+# Underdog
+ggplot(data=df7, aes(x=Year, y=Net)) + stat_summary(fun.y=mean, geom="bar", fill="orange3") + labs(x="Year", y="Net Result ($10 Wagers)", title="Baseline Strategy: Always Betting the Underdog", subtitle="From Most Favorable Book") + my.theme
+
+# Random
+ggplot(data=df8, aes(x=Year, y=Net)) + stat_summary(fun.y=mean, geom="bar", fill="orange3") + labs(x="Year", y="Net Result ($10 Wagers)", title="Baseline Strategy: Randomly Bet Favorite/Underdog", subtitle="From Most Favorable Book") + my.theme
+
+# Higher Rank
+ggplot(data=df9, aes(x=Year, y=Net)) + stat_summary(fun.y=mean, geom="bar", fill="orange3") + labs(x="Year", y="Net Result ($10 Wagers)", title="Baseline Strategy: Always Betting the Higher Ranked Player", subtitle="From Most Favorable Book") + my.theme
+
+# Lower Rank
+ggplot(data=df10, aes(x=Year, y=Net)) + stat_summary(fun.y=mean, geom="bar", fill="orange3") + labs(x="Year", y="Net Result ($10 Wagers)", title="Baseline Strategy: Always Betting the Lower Ranked Player", subtitle="From Most Favorable Book") + my.theme
+```
+
 
 #### Comments on Results
 
-I am concerned with the data we have for 2013. There surely is something wrong there with the filtered.men.data frame I used from the github. Another note of concern is the year 2012, where betting the underdog every time resulted in net profit. This leads to the ultimate conclusion from the baseline strategies: YOU CANNOT WIN WITH THEM... You will lose in the long run. However, betting the favorite is not quite as devastating as betting the underdog.
+The ultimate conclusion from the baseline strategies: YOU CANNOT WIN WITH THEM... You will lose in the long run. However, betting the favorite is not quite as devastating as betting the underdog.
