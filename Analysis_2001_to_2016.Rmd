@@ -257,30 +257,7 @@ nick.strategy <- function(df, wager = 10){
     # Match must meet all baseline betting requirements
     if((df$Series[i] %in% bet.series) & (df$Best.of[i] %in% bet.games) & (df$Surface[i] %in% bet.surface) & (df$Round[i] %in% bet.round)){
     
-      
-      # BET FAVORITE if any favorite decision requirement met
-      if((df$Series[i] %in% bet.fav.series) | (df$Best.of[i] %in% bet.fav.games) | (df$Surface[i] %in% bet.fav.surface) | (df$Round[i] %in% bet.fav.round)){
-        
-        # place wager on FMaxOdds
-        
-        # if win
-        if(df$odds.upset[i] == FALSE){
-          bet.result <- wager * (df$FMaxOdds[i]-1)
-          
-          net <- net + bet.result
-          wins <- wins + 1
-          tries <- tries + 1
-        }
-        
-        #if loss
-        if(df$odds.upset[i] == TRUE){
-          bet.result <- -1*wager
-          
-          net <- net + bet.result
-          tries <- tries + 1
-        }
-      }
-      
+ 
       # BET UNDERDOG if any underdog decision requirement met
       if((df$Series[i] %in% bet.dog.series) | (df$Best.of[i] %in% bet.dog.games) | (df$Surface[i] %in% bet.dog.surface) | (df$Round[i] %in% bet.dog.round)){
         
@@ -297,6 +274,29 @@ nick.strategy <- function(df, wager = 10){
         
         #if loss
         if(df$odds.upset[i] == FALSE){
+          bet.result <- -1*wager
+          
+          net <- net + bet.result
+          tries <- tries + 1
+        }
+      }
+      
+      # BET FAVORITE if any favorite decision requirement met
+      else if((df$Series[i] %in% bet.fav.series) | (df$Best.of[i] %in% bet.fav.games) | (df$Surface[i] %in% bet.fav.surface) | (df$Round[i] %in% bet.fav.round)){
+        
+        # place wager on FMaxOdds
+        
+        # if win
+        if(df$odds.upset[i] == FALSE){
+          bet.result <- wager * (df$FMaxOdds[i]-1)
+          
+          net <- net + bet.result
+          wins <- wins + 1
+          tries <- tries + 1
+        }
+        
+        #if loss
+        if(df$odds.upset[i] == TRUE){
           bet.result <- -1*wager
           
           net <- net + bet.result
