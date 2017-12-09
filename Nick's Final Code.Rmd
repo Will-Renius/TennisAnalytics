@@ -1,0 +1,1171 @@
+---
+title: "Nick’s Final Code"
+author: "Nick Kurtansky"
+date: "12/9/2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include = FALSE}
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(plyr)
+library(stringr)
+library(tidyverse)
+library(lubridate)
+library(lmtest)
+```
+
+
+### Import data
+```{r warning = FALSE}
+# For each season:
+# 1. read in the csv files
+# 2. create new variable: year
+
+d.01 <- read.csv("data/mens_years/2001.csv", header = TRUE, stringsAsFactors = FALSE)
+d.01$year <- rep(2001, nrow(d.01))
+
+d.02 <- read.csv("data/mens_years/2002.csv", header = TRUE, stringsAsFactors = FALSE)
+d.02$year <- rep(2002, nrow(d.02))
+
+d.03 <- read.csv("data/mens_years/2003.csv", header = TRUE, stringsAsFactors = FALSE)
+d.03$year <- rep(2003, nrow(d.03))
+
+d.04 <- read.csv("data/mens_years/2004.csv", header = TRUE, stringsAsFactors = FALSE)
+d.04$year <- rep(2004, nrow(d.04))
+
+d.05 <- read.csv("data/mens_years/2005.csv", header = TRUE, stringsAsFactors = FALSE)
+d.05$year <- rep(2005, nrow(d.05))
+
+d.06 <- read.csv("data/mens_years/2006.csv", header = TRUE, stringsAsFactors = FALSE)
+d.06$year <- rep(2006, nrow(d.06))
+
+d.07 <- read.csv("data/mens_years/2007.csv", header = TRUE, stringsAsFactors = FALSE)
+d.07$year <- rep(2007, nrow(d.07))
+
+d.08 <- read.csv("data/mens_years/2008.csv", header = TRUE, stringsAsFactors = FALSE)
+d.08$year <- rep(2008, nrow(d.08))
+
+d.09 <- read.csv("data/mens_years/2009.csv", header = TRUE, stringsAsFactors = FALSE)
+d.09$year <- rep(2009, nrow(d.09))
+
+d.10 <- read.csv("data/mens_years/2010.csv", header = TRUE, stringsAsFactors = FALSE)
+d.10$year <- rep(2010, nrow(d.10))
+
+d.11 <- read.csv("data/mens_years/2011.csv", header = TRUE, stringsAsFactors = FALSE)
+d.11$year <- rep(2011, nrow(d.11))
+
+d.12 <- read.csv("data/mens_years/2012.csv", header = TRUE, stringsAsFactors = FALSE)
+d.12$year <- rep(2012, nrow(d.12))
+
+d.13 <- read.csv("data/mens_years/2013.csv", header = TRUE, stringsAsFactors = FALSE)
+d.13$year <- rep(2013, nrow(d.13))
+d.13 <- d.13 %>% select(-c(EXW,EXL))  # Removing the flawed EX sports book
+
+d.14 <- read.csv("data/mens_years/2014.csv", header = TRUE, stringsAsFactors = FALSE)
+d.14$year <- rep(2014, nrow(d.14))
+
+d.15 <- read.csv("data/mens_years/2015.csv", header = TRUE, stringsAsFactors = FALSE)
+d.15$year <- rep(2015, nrow(d.15))
+
+d.16 <- read.csv("data/mens_years/2016.csv", header = TRUE, stringsAsFactors = FALSE)
+d.16$year <- rep(2016, nrow(d.16))
+
+d.17 <- read.csv("data/mens_years/2017.csv", header = TRUE, stringsAsFactors = FALSE)
+d.17$year <- rep(2017, nrow(d.17))
+
+# Combine all seasons
+total <- rbind.fill(d.01, d.02, d.03, d.04, d.05, d.06, d.07, d.08, d.09, d.10, d.11, d.12, d.13, d.14, d.15, d.16, d.17)
+```
+
+
+### Data cleaning
+```{r warning = FALSE}
+# remove the existing variables: maxW, maxL, avgW, avgL
+# we will later re-create our own
+men.data <- total %>% select(-c(length(total), length(total) - 1, length(total) - 2, length(total) - 3))
+
+# turn variables rank and poits to type numeric
+men.data$LRank <- as.numeric(men.data$LRank)
+men.data$WRank <- as.numeric(men.data$WRank)
+men.data$LPts <- as.numeric(men.data$LPts)
+men.data$WPts <- as.numeric(men.data$WPts)
+
+# turn Best.of data type to factor
+men.data$Best.of <- as.factor(men.data$Best.of)
+
+# Find the columns with the varying winner's odds and loser's odds
+win.odds.columns <- c("B365W", "B.WW" , "CBW" , "EXW" , "LBW" , "GBW" , "IWW" , "PSW" , "SBW" , "SJW" , "UBW" )
+lose.odds.columns <- c("B365L", "B.WL" , "CBL" , "EXL" , "LBL" , "GBL" , "IWL" , "PSL" , "SBL" , "SJL" , "UBL" ) 
+win.odds.col.nums <- match(win.odds.columns,names(men.data))
+lose.odds.col.nums <- match(lose.odds.columns,names(men.data))
+
+# new variable: number of books with odds of winner
+men.data %>% select(win.odds.col.nums) %>% apply(1, function(x) sum(!is.na(x))) -> men.data$countWinOdds
+
+# new variable: number of books with odds of loser
+men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) sum(!is.na(x))) -> men.data$countLoseOdds
+
+# new variable: maximum odds for the loser
+men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) max(x, na.rm = T) )-> men.data$maxLoseOdds
+
+# new variabe: maxiumum odds for the winner
+men.data %>% select(win.odds.col.nums) %>% apply(1, function(x) max(x, na.rm = T) )-> men.data$maxWinOdds
+
+# new variable: minimum odds for the loser
+men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) min(x, na.rm = T) )-> men.data$minLoseOdds
+
+# new variable: minimum odds for the winner
+men.data %>% select(win.odds.col.nums) %>% apply(1, function(x) min(x, na.rm = T) )-> men.data$minWinOdds
+
+# new variable: average odds for the loser
+men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) mean(x, na.rm = T) )-> men.data$avgL
+
+# new variable: average odds for the winner
+men.data %>% select(win.odds.columns) %>% apply(1, function(x) mean(x, na.rm = T) )-> men.data$avgW
+
+# create a new variable for exact date of match
+dates <- mdy(men.data$Date)
+men.data$date.new <- dates
+
+# filter the data, removing variables that we do not need
+data.filtered <- men.data  %>% select(-W1, -L1, -W2, -L2, -W3, -L3, -W4, -L4, -W5, -L5, -Wsets, -Lsets,  -Date, -Winner, -Loser, -Comment)
+
+# reformat these data types
+data.filtered$LRank <- as.integer(data.filtered$LRank)
+data.filtered$LPts <- as.integer(data.filtered$LPts)
+
+# creating new variable "odds.upset" that I use as label to predict
+data.filtered <- mutate(data.filtered, rank.upset = WRank > LRank)
+data.filtered <- mutate(data.filtered, maxProfit = (maxWinOdds - 1))
+odds.upset <- data.filtered$avgW > data.filtered$avgL
+data.filtered$odds.upset <- odds.upset
+
+
+# this data frame includes information on the winner. We will also create a data frame which does not have this bias in order to train and test gambling strategies
+winner.data <- data.filtered
+save(winner.data, file = "data/winner.data.RData")
+
+
+# begin creating a new data frame that does not contain information on the winner. Specifically, we will get rid of variables ending in W and L (winnders and losses) and replace them with variables ending in F and U (favorite and underdog)
+new.data <- data.filtered %>% dplyr::filter(countWinOdds>0, countLoseOdds >0)
+
+# vectors for win, lose, favorite, and underdog sports books
+win.columns <- c("B365W", "B.WW" , "CBW" , "EXW" , "LBW" , "GBW" , "IWW" , "PSW" , "SBW" , "SJW" , "UBW", "WRank", "countWinOdds" , "avgW", "maxWinOdds", "minWinOdds")
+lose.columns <- c("B365L", "B.WL" , "CBL" , "EXL" , "LBL" , "GBL" , "IWL" , "PSL" , "SBL" , "SJL" , "UBL" , "LRank", "countLoseOdds", "avgL", "maxLoseOdds", "minLoseOdds") 
+favorite.columns <- c("B365F", "B.WF" , "CBF" , "EXF" , "LBF" , "GBF" , "IWF" , "PSF" , "SBF" , "SJF" , "UBF", "FRank", "FcountOdds","avgF", "FMaxOdds","FMinOdds" )
+underdog.columns <- c("B365U", "B.WU" , "CBU" , "EXU" , "LBU" , "GBU" , "IWU" , "PSU" , "SBU" , "SJU" , "UBU" , "URank", "UcountOdds", "avgU", "UMaxOdds", "UMinOdds")
+
+# create the new variables: favorite and underdog odds
+for(index in 1:length(favorite.columns)){
+  new.data[[favorite.columns[index]]] <- ifelse(new.data[["avgL"]] <= new.data[["avgW"]], new.data[[lose.columns[index]]], new.data[[win.columns[index]]])
+}
+for(index in 1: length(underdog.columns)){
+  new.data[[underdog.columns[index]]] <- ifelse(new.data[["avgL"]] > new.data[["avgW"]], new.data[[lose.columns[index]]], new.data[[win.columns[index]]])
+}
+
+# remove variables: winner and loser odds
+favorite.data.1 <- new.data
+favorite.data <- favorite.data.1 %>% select(-CBW, -CBL, -GBW, -GBL, -IWW, -IWL, -SBW, -SBL, -B365W, -B365L, -B.WW, -B.WL, -EXW, -EXL, -PSW, -PSL, -WPts, -LPts, - UBW, -UBL, -LBW, -LBL, -SJW, -SJL , -WRank, -LRank, -avgW, -avgL, -countWinOdds, -countLoseOdds, -maxLoseOdds, -minLoseOdds - maxWinOdds, -minWinOdds)
+
+
+# save the resulting data as favorite.data
+save(favorite.data, file = "data/favorite.data.RData")
+```
+
+
+### Baseline strategies
+The purpose of this is to provide the results to the two baseline strategies:
+  1. Always betting the favorite (average book)
+  2. Always betting the underdog (average book)
+  3. Randomly betting the underdog or favorite (average book)
+  4. Always betting the higher ranked player (average book)
+  5. Always betting the lower ranked player (average book)
+  6. Always betting the favorite (highest book)
+  7. Always betting the underdog (highest book)
+  8. Randomly betting the underdog or favorite (highest book)
+  9. Always betting the higher ranked player (highest book)
+  10. Always betting the lower ranked player (highest book)
+  
+I will run this simulation seperately for each of the years from 2001 through 2017 in order to look for trends that may provide insight in how the oddsmakers have adapted over the years.
+
+```{r}
+# load in data
+load("data/favorite.data.RData")
+data <- favorite.data
+
+
+# clean data
+
+# only include matches that sports books took bets on
+data <- data %>% filter((FcountOdds > 0) & (UcountOdds > 0))
+
+# only include matches between players who have a rank
+data <- data %>% filter((!is.na(URank))&(!is.na(FRank)))
+
+# new column for absolute rank difference variable: rank.dif
+data <- data %>% mutate(rank.dif = URank - FRank)
+
+# new column for absolute odds difference variable: odds.dif
+data <- data %>% mutate(abs.odds.dif = avgU - avgF)
+
+
+### What is the raw probability of an upset?
+sum(data$odds.upset/nrow(data))
+# Upset occurs with probability 0.2999496... Hence, odds have a success rate p = 0.7000504
+```
+
+#### Simulations of Baseline Strategies
+##### Outcome Matrix
+Includes:
+  Year, strategy, net profit, wins, tries
+```{r}
+Year <- c(2001:2017)
+B1 <- rep("bet fav - avg odds", times=17)
+B2 <- rep("bet dog - avg odds", times=17)
+B3 <- rep("bet random - avg odds", times=17)
+B4 <- rep("bet higher rank - avg odds", times=17)
+B5 <- rep("bet lower rank - avg odds",times=17)
+B6 <- rep("bet fav - best odds", times=17)
+B7 <- rep("bet dog - best odds", times=17)
+B8 <- rep("bet random - best odds", times=17)
+B9 <- rep("bet higher rank - best odds", times=17)
+B10 <- rep("bet lower rank - best odds",times=17)
+Net <- rep(NA, times=17)
+Wins <- rep(NA, times=17)
+Tries <- rep(NA, times=17)
+
+# data frames to display the results of each baseline strategy
+df1 <- data.frame(Year, B1, Net, Wins, Tries)
+df2 <- data.frame(Year, B2, Net, Wins, Tries)
+df3 <- data.frame(Year, B3, Net, Wins, Tries)
+df4 <- data.frame(Year, B4, Net, Wins, Tries)
+df5 <- data.frame(Year, B5, Net, Wins, Tries)
+df6 <- data.frame(Year, B6, Net, Wins, Tries)
+df7 <- data.frame(Year, B7, Net, Wins, Tries)
+df8 <- data.frame(Year, B8, Net, Wins, Tries)
+df9 <- data.frame(Year, B9, Net, Wins, Tries)
+df10 <- data.frame(Year, B10, Net, Wins, Tries)
+```
+
+##### Baseline Strategy 1: always bet favorite average book
+```{r}
+#### Function for single-year simulation
+bet.favorite <- function(df, wager = 10){
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # for each match:
+  for(i in 1:nrow(df)){
+    
+    # if chalk (win)
+    if(df$odds.upset[i] == FALSE){
+      bet.result <- wager * (df$avgF[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if upset (loss)
+    if(df$odds.upset[i] == TRUE){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+  }
+  
+  # output a list
+  out <- list(net, wins, tries)
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+
+#### Loop through all the seasons
+for(i in 1:length(Year)){
+  season <- data %>% filter(year == Year[i])
+  s.result <- bet.favorite(season, wager = 10)
+  
+  df1$Net[i] <- s.result[[1]]
+  df1$Wins[i] <- s.result[[2]]
+  df1$Tries[i] <- s.result[[3]]
+}
+names(df1)[2] <- "Strategy"
+```
+
+##### Baseline Strategy 2: always bet underdog (average book)
+```{r}
+#### Function for single-year simulation
+bet.underdog <- function(df, wager = 10){
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # for each match:
+  for(i in 1:nrow(df)){
+    
+    # if upset (win)
+    if(df$odds.upset[i] == TRUE){
+      bet.result <- wager * (df$avgU[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if chalk (loss)
+    if(df$odds.upset[i] == FALSE){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+  }
+  
+  # output a list
+  out <- list(net, wins, tries)
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+
+#### Loop through all the seasons
+for(i in 1:length(Year)){
+  season <- data %>% filter(year == Year[i])
+  s.result <- bet.underdog(season, wager = 10)
+  
+  df2$Net[i] <- s.result[[1]]
+  df2$Wins[i] <- s.result[[2]]
+  df2$Tries[i] <- s.result[[3]]
+}
+names(df2)[2] <- "Strategy"
+```
+
+##### Baseline Strategy 3: random choice of underdog/favorite (average book)
+```{r}
+#### Function for single-year simulation
+bet.random <- function(df, wager = 10){
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # for each match:
+  for(i in 1:nrow(df)){
+    
+    choice <- sample(c("fav","dog"),size=1)
+    
+    if(choice == "dog"){
+
+      # if upset (win)
+      if(df$odds.upset[i] == TRUE){
+        bet.result <- wager * (df$avgU[i]-1)
+        
+        net <- net + bet.result
+
+        wins <- wins + 1
+        tries <- tries + 1
+      }
+      
+      # if chalk (loss)
+      if(df$odds.upset[i] == FALSE){
+        bet.result <- -1*wager
+        
+        net <- net + bet.result
+        tries <- tries + 1
+      }
+    }
+    
+    if(choice == "fav"){
+
+      # if chalk (win)
+      if(df$odds.upset[i] == FALSE){
+        bet.result <- wager * (df$avgF[i]-1)
+  
+        net <- net + bet.result
+        wins <- wins + 1
+        tries <- tries + 1
+      }
+      
+      # if upset (loss)
+      if(df$odds.upset[i] == TRUE){
+        bet.result <- -1*wager
+        
+        net <- net + bet.result
+        tries <- tries + 1
+      }
+    }
+  }
+  
+  # output a list
+  out <- list(net, wins, tries)
+  
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+
+#### Loop through all the seasons
+for(i in 1:length(Year)){
+  season <- data %>% filter(year == Year[i])
+  s.result <- bet.random(season, wager = 10)
+  
+  df3$Net[i] <- s.result[[1]]
+  df3$Wins[i] <- s.result[[2]]
+  df3$Tries[i] <- s.result[[3]]
+}
+names(df3)[2] <- "Strategy"
+#More successful than betting all underdogs. Less successful than betting all favorites. We still lose money in the end.
+```
+
+##### Baseline Strategy 4: always bet the higher ranked player (average book)
+```{r}
+#### Function for single-year simulation
+bet.highrank <- function(df, wager = 10){
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # for each match:
+  for(i in 1:nrow(df)){
+
+    if(df$rank.upset[i] == FALSE){
+
+      # if 'chalk' and higher rank (win)
+      if(df$odds.upset[i]==FALSE){
+        bet.result <- wager * (df$avgF[i]-1)
+        
+        net <- net + bet.result
+        wins <- wins + 1
+        tries <- tries + 1
+      }
+    
+      # if 'dog' and higher rank (win)
+      if(df$odds.upset[i]==TRUE){
+        bet.result <- wager * (df$avgU[i]-1)
+        
+        net <- net + bet.result
+        wins <- wins + 1
+        tries <- tries + 1
+      }
+    }
+    
+    if(df$rank.upset[i] == TRUE){
+
+      # if 'chalk' and lower rank (loss)
+      if(df$odds.upset[i] == FALSE){
+        bet.result <- -1*wager
+        
+        net <- net + bet.result
+        tries <- tries + 1
+      }
+    
+      # if 'dog' and lower rank (loss)
+      if(df$odds.upset[i] == TRUE){
+        bet.result <- -1*wager
+        
+        net <- net + bet.result
+        tries <- tries + 1
+      }
+    }
+  }
+  
+  # output a list
+  out <- list(net, wins, tries)
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+
+#### Loop through all the seasons
+for(i in 1:length(Year)){
+  season <- data %>% filter(year == Year[i])
+  s.result <- bet.highrank(season, wager = 10)
+  
+  df4$Net[i] <- s.result[[1]]
+  df4$Wins[i] <- s.result[[2]]
+  df4$Tries[i] <- s.result[[3]]
+}
+names(df4)[2] <- "Strategy"
+```
+
+##### Baseline Strategy 5: always bet the lower ranked player (average book)
+```{r}
+#### Function for single-year simulation
+bet.lowrank <- function(df, wager = 10){
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # for each match:
+  for(i in 1:nrow(df)){
+    
+    # if 'chalk' and lower rank (win)
+    if((df$rank.upset[i] == TRUE)&(df$odds.upset[i]==FALSE)){
+      bet.result <- wager * (df$avgF[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if 'dog' and lower rank (win)
+    if((df$rank.upset[i] == TRUE)&(df$odds.upset[i]==TRUE)){
+      bet.result <- wager * (df$avgU[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if 'chalk' and higher rank (loss)
+    if((df$rank.upset[i] == FALSE)&(df$odds.upset[i] == FALSE)){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+    
+    # if 'dog' and higher rank (win)
+    if((df$rank.upset[i] == FALSE)&(df$odds.upset[i] == TRUE)){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+  }
+  
+  # output a list
+  out <- list(net, wins, tries)
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+
+#### Loop through all the seasons
+for(i in 1:length(Year)){
+  season <- data %>% filter(year == Year[i])
+  s.result <- bet.lowrank(season, wager = 10)
+  
+  df5$Net[i] <- s.result[[1]]
+  df5$Wins[i] <- s.result[[2]]
+  df5$Tries[i] <- s.result[[3]]
+}
+names(df5)[2] <- "Strategy"
+#It makes sence that you wouldn't be successsful always putting your money on the lower ranked player.
+```
+
+##### Baseline Strategy 6: always bet favorite (highest book)
+```{r}
+#### Function for single-year simulation
+bet.favorite.h <- function(df, wager = 10){
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # for each match:
+  for(i in 1:nrow(df)){
+    
+    # if chalk (win)
+    if(df$odds.upset[i] == FALSE){
+      bet.result <- wager * (df$FMaxOdds[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if upset (loss)
+    if(df$odds.upset[i] == TRUE){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+  }
+  
+  # output a list
+  out <- list(net, wins, tries)
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+
+#### Loop through all the seasons
+for(i in 1:length(Year)){
+  season <- data %>% filter(year == Year[i])
+  s.result <- bet.favorite.h(season, wager = 10)
+  
+  df6$Net[i] <- s.result[[1]]
+  df6$Wins[i] <- s.result[[2]]
+  df6$Tries[i] <- s.result[[3]]
+}
+names(df6)[2] <- "Strategy"
+```
+
+##### Baseline Strategy 7: always bet underdog (highest book)
+```{r}
+#### Function for single-year simulation
+bet.underdog.h <- function(df, wager = 10){
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # for each match:
+  for(i in 1:nrow(df)){
+    
+    # if upset (win)
+    if(df$odds.upset[i] == TRUE){
+      bet.result <- wager * (df$UMaxOdds[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if chalk (loss)
+    if(df$odds.upset[i] == FALSE){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+  }
+  
+  # output a list
+  out <- list(net, wins, tries)
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+
+#### Loop through all the seasons
+for(i in 1:length(Year)){
+  season <- data %>% filter(year == Year[i])
+  s.result <- bet.underdog.h(season, wager = 10)
+  
+  df7$Net[i] <- s.result[[1]]
+  df7$Wins[i] <- s.result[[2]]
+  df7$Tries[i] <- s.result[[3]]
+}
+names(df7)[2] <- "Strategy"
+```
+
+##### Baseline Strategy 8: random choice of underdog/favorite (highest book)
+```{r}
+#### Function for single-year simulation
+bet.random.h <- function(df, wager = 10){
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # for each match:
+  for(i in 1:nrow(df)){
+    
+    choice <- sample(c("fav","dog"),size=1)
+    
+    if(choice == "dog"){
+
+      # if upset (win)
+      if(df$odds.upset[i] == TRUE){
+        bet.result <- wager * (df$UMaxOdds[i]-1)
+        
+        net <- net + bet.result
+
+        wins <- wins + 1
+        tries <- tries + 1
+      }
+      
+      # if chalk (loss)
+      if(df$odds.upset[i] == FALSE){
+        bet.result <- -1*wager
+        
+        net <- net + bet.result
+        tries <- tries + 1
+      }
+    }
+    
+    if(choice == "fav"){
+
+      # if chalk (win)
+      if(df$odds.upset[i] == FALSE){
+        bet.result <- wager * (df$FMaxOdds[i]-1)
+  
+        net <- net + bet.result
+        wins <- wins + 1
+        tries <- tries + 1
+      }
+      
+      # if upset (loss)
+      if(df$odds.upset[i] == TRUE){
+        bet.result <- -1*wager
+        
+        net <- net + bet.result
+        tries <- tries + 1
+      }
+    }
+  }
+  
+  # output a list
+  out <- list(net, wins, tries)
+  
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+
+#### Loop through all the seasons
+for(i in 1:length(Year)){
+  season <- data %>% filter(year == Year[i])
+  s.result <- bet.random.h(season, wager = 10)
+  
+  df8$Net[i] <- s.result[[1]]
+  df8$Wins[i] <- s.result[[2]]
+  df8$Tries[i] <- s.result[[3]]
+}
+names(df8)[2] <- "Strategy"
+```
+
+##### Baseline Strategy 9: always bet the higher ranked player (highest book)
+```{r}
+#### Function for single-year simulation
+bet.highrank.h <- function(df, wager = 10){
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # for each match:
+  for(i in 1:nrow(df)){
+    
+    # if 'chalk' and higher rank (win)
+    if((df$rank.upset[i] == FALSE)&(df$odds.upset[i]==FALSE)){
+      bet.result <- wager * (df$FMaxOdds[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if 'dog' and higher rank (win)
+    if((df$rank.upset[i] == FALSE)&(df$odds.upset[i]==TRUE)){
+      bet.result <- wager * (df$UMaxOdds[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if 'chalk' and lower rank (loss)
+    if((df$rank.upset[i] == TRUE)&(df$odds.upset[i] == FALSE)){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+    
+    # if 'dog' and lower rank (loss)
+    if((df$rank.upset[i] == TRUE)&(df$odds.upset[i] == TRUE)){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+  }
+  
+  # output a list
+  out <- list(net, wins, tries)
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+
+#### Loop through all the seasons
+for(i in 1:length(Year)){
+  season <- data %>% filter(year == Year[i])
+  s.result <- bet.highrank.h(season, wager = 10)
+  
+  df9$Net[i] <- s.result[[1]]
+  df9$Wins[i] <- s.result[[2]]
+  df9$Tries[i] <- s.result[[3]]
+}
+names(df9)[2] <- "Strategy"
+```
+
+##### Baseline Strategy 10: always bet the lower ranked player (highest book)
+```{r}
+#### Function for single-year simulation
+bet.lowrank.h <- function(df, wager = 10){
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # for each match:
+  for(i in 1:nrow(df)){
+    
+    # if 'chalk' and lower rank (win)
+    if((df$rank.upset[i] == TRUE)&(df$odds.upset[i]==FALSE)){
+      bet.result <- wager * (df$FMaxOdds[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if 'dog' and lower rank (win)
+    if((df$rank.upset[i] == TRUE)&(df$odds.upset[i]==TRUE)){
+      bet.result <- wager * (df$UMaxOdds[i]-1)
+      
+      net <- net + bet.result
+      wins <- wins + 1
+      tries <- tries + 1
+    }
+    
+    # if 'chalk' and higher rank (loss)
+    if((df$rank.upset[i] == FALSE)&(df$odds.upset[i] == FALSE)){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+    
+    # if 'dog' and higher rank (win)
+    if((df$rank.upset[i] == FALSE)&(df$odds.upset[i] == TRUE)){
+      bet.result <- -1*wager
+      
+      net <- net + bet.result
+      tries <- tries + 1
+    }
+  }
+  
+  # output a list
+  out <- list(net, wins, tries)
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+
+#### Loop through all the seasons
+for(i in 1:length(Year)){
+  season <- data %>% filter(year == Year[i])
+  s.result <- bet.lowrank.h(season, wager = 10)
+  
+  df10$Net[i] <- s.result[[1]]
+  df10$Wins[i] <- s.result[[2]]
+  df10$Tries[i] <- s.result[[3]]
+}
+names(df10)[2] <- "Strategy"
+```
+
+##### View Results of baseline strategies
+```{r}
+Result <- rbind(df1, df2, df3, df4, df5, df6, df7, df8, df9, df10)
+names(Result) <- c("Year","Strategy","Net Profit (w/ $10 bets)","# Successes","# Tries")
+
+## Graph of Simulations
+# theme
+my.theme <- theme(axis.text.x=element_text(face="bold",color="cyan4", size=10), axis.text.y=element_text(face="bold",color="cyan4",size=10), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5), legend.title=element_blank(), plot.subtitle = element_text(face="bold", color="royalblue4", size=10, hjust=.5))
+
+# Favorite
+ggplot(data=df6, aes(x=Year, y=Net)) + stat_summary(fun.y=mean, geom="bar", fill="orange3") + labs(x="Year", y="Net Result ($10 Wagers)", title="Baseline Strategy: Always Betting the Favorite", subtitle="From Most Favorable Book") + my.theme
+
+# Underdog
+ggplot(data=df7, aes(x=Year, y=Net)) + stat_summary(fun.y=mean, geom="bar", fill="orange3") + labs(x="Year", y="Net Result ($10 Wagers)", title="Baseline Strategy: Always Betting the Underdog", subtitle="From Most Favorable Book") + my.theme
+
+# Random
+ggplot(data=df8, aes(x=Year, y=Net)) + stat_summary(fun.y=mean, geom="bar", fill="orange3") + labs(x="Year", y="Net Result ($10 Wagers)", title="Baseline Strategy: Randomly Bet Favorite/Underdog", subtitle="From Most Favorable Book") + my.theme
+
+# Higher Rank
+ggplot(data=df9, aes(x=Year, y=Net)) + stat_summary(fun.y=mean, geom="bar", fill="orange3") + labs(x="Year", y="Net Result ($10 Wagers)", title="Baseline Strategy: Always Betting the Higher Ranked Player", subtitle="From Most Favorable Book") + my.theme
+
+# Lower Rank
+ggplot(data=df10, aes(x=Year, y=Net)) + stat_summary(fun.y=mean, geom="bar", fill="orange3") + labs(x="Year", y="Net Result ($10 Wagers)", title="Baseline Strategy: Always Betting the Lower Ranked Player", subtitle="From Most Favorable Book") + my.theme
+```
+
+##### Comments on Results of Baseline Strategies
+The ultimate conclusion from the baseline strategies: YOU CANNOT WIN WITH THEM... You will lose in the long run. However, betting the favorite is not quite as devastating as betting the underdog.
+
+
+### Analysis
+```{r}
+### load in data
+data <- load('data/favorite.data.RData')
+data <- favorite.data
+
+
+### Clean Data
+# only include matches that sports books took bets on and don't include Round Robins
+data <- data %>% filter((FcountOdds > 0) & (UcountOdds > 0) & Round != "Round Robin")
+
+# new column for absolute rank difference variable: abs.rank.dif
+data <- data %>% mutate(rank.dif = URank - FRank)
+
+# new column for absolute odds difference variable: abs.odds.dif
+data <- data %>% mutate(odds.dif = avgF - avgU)
+
+
+### What is the raw probability of an upset?
+sum(data$odds.upset/nrow(data))
+#Upset occurs with probability .30... Hence, odds have a success rate p = .70
+
+
+### Training data from 2001 through 2014
+train <- data %>% filter(!(year %in% c("2015","2016","2017")))
+test <- data %>% filter(year %in% c("2015","2016","2017"))
+
+
+### Frequency Tables
+# Row-proportions: Best.of vs. odds.upset
+prop.table(table(train$Best.of, train$odds.upset),1)
+
+# Row-proportions: Surface vs. odds.upset
+prop.table(table(train$Surface, train$odds.upset),1)
+
+# Row-proportions: Round vs. odds.upset
+prop.table(table(train$Round, train$odds.upset),1)
+
+# Row-proportions: Series vs. odds.upset
+prop.table(table(train$Series,train$odds.upset),1)
+
+
+### Frequency Bar Graphs
+my.theme <- theme(axis.text.x=element_text(face="bold",color="cyan4", size=8, angle=30), axis.text.y=element_text(face="bold",color="cyan4",size=8), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5))
+
+# Frequency Bar Graph: Best.of vs. odds.upset
+ggplot(data=train, aes(Best.of,as.numeric(odds.upset))) + stat_summary(fun.y=mean, geom="bar",fill="orange3",width=.4) + labs(y="Frequency (%)", x="Best Of (x) Match", title="Upset Likelihood") + theme(axis.text.x=element_text(face="bold",color="cyan4", size=10), axis.text.y=element_text(face="bold",color="cyan4",size=10), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5))
+
+# Frequency Bar Graph: Surface vs. odds.upset
+ggplot(data=train, aes(Surface,as.numeric(odds.upset))) + stat_summary(fun.y=mean, geom="bar",fill="orange3",width=.4) + labs(y="Frequency (%)", x="Court Surface Type", title="Upset Likelihood") + theme(axis.text.x=element_text(face="bold",color="cyan4", size=10), axis.text.y=element_text(face="bold",color="cyan4",size=10), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5))
+
+# Frequency Bar Graph: Round vs. odds.upset
+ggplot(data=train, aes(Round,as.numeric(odds.upset))) + stat_summary(fun.y=mean, geom="bar",fill="orange3",width=.4) + labs(y="Frequency (%)", x="Round of Tournament", title="Upset Likelihood") + my.theme
+
+# Frequency Bar Graph: Series vs. odds.upset
+ggplot(data=train, aes(Series,as.numeric(odds.upset))) + stat_summary(fun.y=mean, geom="bar",fill="orange3",width=.4) + labs(y="Frequency (%)", x="Series of Tournament", title="Upset Likelihood") + my.theme
+
+
+### Graph Winning Potential
+#### First, set up the data...
+detach(package:plyr)
+library(dplyr)
+
+# Row-proportions: Best.of vs. odds.upset
+df.bestof <- as.data.frame(prop.table(table(train$Best.of, train$odds.upset),1))
+names(df.bestof) <- c("Best.of", "odds.upset", "upset.freq")
+df.bestof <- df.bestof %>% filter(odds.upset == TRUE) %>% select(1,3)
+t1<- train %>% group_by(Best.of) %>% filter(odds.upset==FALSE) %>% summarize(chalk.avg = mean(FMaxOdds))
+t2<- train %>% group_by(Best.of) %>% filter(odds.upset==TRUE) %>% summarize(dog.avg = mean(UMaxOdds))
+df.bestof$chalk.avg.odds <- as.data.frame(t1)[,2]
+df.bestof$dog.avg.odds <- as.data.frame(t2)[,2]
+df.bestof <- df.bestof %>% mutate(bet.favorite = (1-upset.freq)*chalk.avg.odds, bet.underdog = (upset.freq*dog.avg.odds))
+
+
+# Row-proportions: Surface vs. odds.upset
+df.surface <- as.data.frame(prop.table(table(train$Surface, train$odds.upset),1))
+names(df.surface) <- c("Surface", "odds.upset", "upset.freq")
+df.surface <- df.surface %>% filter(odds.upset == TRUE) %>% select(1,3)
+t1<- train %>% group_by(Surface) %>% filter(odds.upset==FALSE) %>% summarize(chalk.avg = mean(FMaxOdds))
+t2<- train %>% group_by(Surface) %>% filter(odds.upset==TRUE) %>% summarize(dog.avg = mean(UMaxOdds))
+df.surface$chalk.avg.odds <- as.data.frame(t1)[,2]
+df.surface$dog.avg.odds <- as.data.frame(t2)[,2]
+df.surface <- df.surface %>% mutate(bet.favorite = (1-upset.freq)*chalk.avg.odds, bet.underdog = (upset.freq*dog.avg.odds))
+
+
+# Row-proportions: Round vs. odds.upset
+df.round <- as.data.frame(prop.table(table(train$Round, train$odds.upset),1))
+names(df.round) <- c("Round", "odds.upset", "upset.freq")
+df.round <- df.round %>% filter(odds.upset == TRUE) %>% select(1,3)
+t1<- train %>% group_by(Round) %>% filter(odds.upset==FALSE) %>% summarize(chalk.avg = mean(FMaxOdds))
+t2<- train %>% group_by(Round) %>% filter(odds.upset==TRUE) %>% summarize(dog.avg = mean(UMaxOdds))
+df.round$chalk.avg.odds <- as.data.frame(t1)[,2]
+df.round$dog.avg.odds <- as.data.frame(t2)[,2]
+df.round <- df.round %>% mutate(bet.favorite = (1-upset.freq)*chalk.avg.odds, bet.underdog = (upset.freq*dog.avg.odds))
+
+
+# Row-proportions: Series vs. odds.upset
+df.series <- as.data.frame(prop.table(table(train$Series,train$odds.upset),1))
+names(df.series) <- c("Series", "odds.upset", "upset.freq")
+df.series <- df.series %>% filter(odds.upset == TRUE) %>% select(1,3)
+t1<- train %>% group_by(Series) %>% filter(odds.upset==FALSE) %>% summarize(chalk.avg = mean(FMaxOdds))
+t2<- train %>% group_by(Series) %>% filter(odds.upset==TRUE) %>% summarize(dog.avg = mean(UMaxOdds))
+df.series$chalk.avg.odds <- as.data.frame(t1)[,2]
+df.series$dog.avg.odds <- as.data.frame(t2)[,2]
+df.series <- df.series %>% mutate(bet.favorite = (1-upset.freq)*chalk.avg.odds, bet.underdog = (upset.freq*dog.avg.odds))
+
+
+# Average dog.proft & chalk.proft for horizontal lines
+train.1 <- train %>% filter(odds.upset==FALSE)
+train.2 <- train %>% filter(odds.upset==TRUE)
+overall.chalk.profit <- mean(train.1$FMaxOdds)*mean(1-as.numeric(train$odds.upset))
+overall.dog.profit <- mean(train.2$UMaxOdds)*mean(as.numeric(train$odds.upset))
+df.bestof.1 <- gather(df.bestof,key="chalk.dog",value="profit",c(5,6))
+df.round.1 <- gather(df.round,key="chalk.dog",value="profit",c(5,6))
+df.surface.1 <- gather(df.surface,key="chalk.dog",value="profit",c(5,6))
+df.series.1 <- gather(df.series,key="chalk.dog",value="profit",c(5,6))
+names(df.bestof) <- c("Best.of","upset.freq","fav.avg.odds","dog.avg.odds","fav.potential","dog.potential")
+names(df.round) <- c("Round","upset.freq","fav.avg.odds","dog.avg.odds","fav.potential","dog.potential")
+names(df.surface) <- c("Surface","upset.freq","fav.avg.odds","dog.avg.odds","fav.potential","dog.potential")
+names(df.series) <- c("Series","upset.freq","fav.avg.odds","dog.avg.odds","fav.potential","dog.potential")
+
+
+
+#### Payout-Potential Graphs
+# theme
+my.theme <- theme(axis.text.x=element_text(face="bold",color="cyan4", size=8, angle=30), axis.text.y=element_text(face="bold",color="cyan4",size=8), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5), legend.title=element_blank())
+
+# color pallete
+my.colors <- as.character(c("chalk.profit"="lightskyblue3", "dog.profit"="orange3"))
+my.color.scale <- scale_colour_manual(name="my.colors", values=my.colors)
+
+
+# Best OF
+ggplot(data=df.bestof.1, aes(x=Best.of, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + geom_hline(yintercept=1, color = "grey") + labs(title ="Net Payout Potential by Strategy & Number of Games", y="Payout Potential (per $1 bet)", x = "Possible Games per Match") + theme(axis.text.x=element_text(face="bold",color="cyan4", size=8), axis.text.y=element_text(face="bold",color="cyan4",size=8), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5), legend.title=element_blank()) + geom_text(x = 3.3, y = .925, label = "Overall Underdog", size = 3) + geom_text(x=3.3, y=.995, label = "Overall Favorite", size = 3) + scale_y_continuous(limits = c(.8,1.05), breaks = seq(.8,1.1,.05))
+
+
+# SURFACE
+ggplot(data=df.surface.1, aes(x=Surface, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + geom_hline(yintercept=1, color = "grey") + labs(title ="Net Payout Potential by Strategy & Court Type", y="Payout Potential (per $1 bet)", x = "Surface") + theme(axis.text.x=element_text(face="bold",color="cyan4", size=8), axis.text.y=element_text(face="bold",color="cyan4",size=8), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5), legend.title=element_blank()) + geom_text(x = 3.3, y = .925, label = "Overall Underdog", size = 3) + geom_text(x=3.3, y=.995, label = "Overall Favorite", size = 3) + scale_y_continuous(limits = c(.9,1.02), breaks = seq(.9,1.2,.02))
+
+
+# ROUND
+ggplot(data=df.round.1, aes(x=Round, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + geom_hline(yintercept=1, color = "grey") + labs(title ="Net Payout Potential by Strategy & Round", y="Payout Potential (per $1 bet)", x = "Round") + my.theme + geom_text(x = 4.3, y = .93, label = "Overall Underdog", size = 3) + geom_text(x=4.3, y=1, label = "Overall Favorite", size = 3) + scale_y_continuous(limits = c(.8,1.05), breaks = seq(.8,1.5,.04))
+
+
+# SERIES
+ggplot(data=df.series.1, aes(x=Series, y=profit)) + geom_point(aes(color = chalk.dog),size=8) + my.color.scale + geom_hline(yintercept = overall.dog.profit, linetype = "longdash", color = "orange3") + geom_hline(yintercept = overall.chalk.profit, linetype = "dotdash", color = "lightskyblue3") + geom_hline(yintercept=1, color = "grey") + labs(title ="Net Payout Potential by Strategy & Series", y="Payout Potential (per $1 bet)", x = "Series") + my.theme + geom_text(x = 8.7, y = .93, label = "Overall Underdog", size = 3) + geom_text(x=8.7, y=1, label = "Overall Favorite", size = 3) + scale_y_continuous(limits = c(.7,1.10), breaks = seq(.7,1.10,.05))
+```
+
+
+# Gambling Strategy Simulation
+## Strategy based on Payout-Potential Measure
+```{r}
+### Payout-Potenial Strategy Function
+nick.strategy <- function(df, wager = 10){
+
+  # initialize
+  net <- 0
+  tries <- 0
+  wins <- 0
+  
+  # Vector of decision requirements - series
+  bet.fav.series <- c("Grand Slam", "International Series", "Masters Cup")
+  bet.dog.series <- c("Masters 1000")
+  # Vector of baseline betting requirements - series
+  bet.series <- c(bet.fav.series, bet.dog.series, "ATP250", "ATP500", "Masters")
+  
+  # Vector of decision requirements - game
+  bet.fav.games <- c(5)
+  bet.dog.games <- c()
+  # Vector of baseline betting requirements - game
+  bet.games <- c(bet.fav.games, 3)
+  
+  # Vector of decision requirements - surface
+  bet.fav.surface <- c("Grass")
+  bet.dog.surface <- c("Carpet")
+  # Vector of baseline betting requirements - surface
+  bet.surface <- c(bet.fav.surface, bet.dog.surface, "Hard", "Clay")
+  
+  # Vector of decision requirements - round
+  bet.fav.round <- c("4th Round", "The Final")
+  bet.dog.round <- c()
+  # Vector of baseline betting requirements - round
+  bet.round <- c(bet.fav.round,"Quarterfinals", "Semifinals")
+  
+  
+  # Loop for betting decisions
+  for(i in 1:nrow(df)){
+    
+    # Match must meet all baseline betting requirements
+    if((df$Series[i] %in% bet.series) & (df$Best.of[i] %in% bet.games) & (df$Surface[i] %in% bet.surface) & (df$Round[i] %in% bet.round)){
+    
+ 
+      # BET UNDERDOG if any underdog decision requirement met
+      if((df$Series[i] %in% bet.dog.series) | (df$Best.of[i] %in% bet.dog.games) | (df$Surface[i] %in% bet.dog.surface) | (df$Round[i] %in% bet.dog.round)){
+        
+        # place wager on UMaxOdds
+        
+        # if win
+        if(df$odds.upset[i] == TRUE){
+          bet.result <- wager * (df$UMaxOdds[i]-1)
+          
+          net <- net + bet.result
+          wins <- wins + 1
+          tries <- tries + 1
+        }
+        
+        #if loss
+        if(df$odds.upset[i] == FALSE){
+          bet.result <- -1*wager
+          
+          net <- net + bet.result
+          tries <- tries + 1
+        }
+      }
+      
+      # BET FAVORITE if any favorite decision requirement met
+      else if((df$Series[i] %in% bet.fav.series) | (df$Best.of[i] %in% bet.fav.games) | (df$Surface[i] %in% bet.fav.surface) | (df$Round[i] %in% bet.fav.round)){
+        
+        # place wager on FMaxOdds
+        
+        # if win
+        if(df$odds.upset[i] == FALSE){
+          bet.result <- wager * (df$FMaxOdds[i]-1)
+          
+          net <- net + bet.result
+          wins <- wins + 1
+          tries <- tries + 1
+        }
+        
+        #if loss
+        if(df$odds.upset[i] == TRUE){
+          bet.result <- -1*wager
+          
+          net <- net + bet.result
+          tries <- tries + 1
+        }
+      }
+    }
+  }
+  
+  # RETURN LIST
+  out <- list(net, wins, tries)
+  names(out) <- c("net","wins","tries")
+  return(out)
+}
+
+
+
+### Loop simulation through 2015, 2016, 2017
+YEARS <- unique(test$year)
+Net <- rep(NA, times=3)
+Wins <- rep(NA, times=3)
+Tries <- rep(NA, times=3)
+
+sim <- data.frame(YEARS, Net, Wins, Tries)
+
+for(i in 1:length(YEARS)){
+  season <- test %>% filter(year == YEARS[i])
+  s.result <- nick.strategy(season, wager = 10)
+  
+  sim$Net[i] <- s.result[[1]]
+  sim$Wins[i] <- s.result[[2]]
+  sim$Tries[i] <- s.result[[3]]
+}
+names(sim)[1] <- "Year"
+
+## Graph of Simulation Results
+# theme
+my.theme <- theme(axis.text.x=element_text(face="bold",color="cyan4", size=10), axis.text.y=element_text(face="bold",color="cyan4",size=10), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5), legend.title=element_blank(), plot.subtitle = element_text(face="bold", color="royalblue4", size=10, hjust=.5))
+
+# ggplot
+ggplot(data=sim, aes(x=Year, y=Net)) + stat_summary(fun.y=mean, geom="bar", fill="orange3") + labs(x="Year", y="Net Result ($10 Wagers)", title="Conditional Betting Strategy", subtitle="From Most Favorable Book") + my.theme
+```
+
+
+
+
