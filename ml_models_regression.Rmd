@@ -63,9 +63,10 @@ for(col.name in underdog.columns){
   imputed.data[[col.name]][is.na(imputed.data[[col.name]])] <- imputed.data[["avgU"]][is.na(imputed.data[[col.name]])]
 }
 
-bet <- 1
+bet <- 10
 #imputed.data <- imputed.data %>% na.omit() %>% mutate(upset.payout = case_when(favorite_won == "FALSE"  ~ bet * ( UMaxOdds - 1), favorite_won =="TRUE" ~ - bet, TRUE ~ NA_real_)) %>% select(-maxWinOdds, -minLoseOdds, -maxProfit, -rank.upset, -year, -odds.upset, -Tournament, -Location, -favorite_won) 
-imputed.data <- imputed.data %>% na.omit() %>% mutate(payout = case_when(favorite_won == "TRUE"  ~ bet * ( FMaxOdds - 1), favorite_won =="FALSE" ~ -bet, TRUE ~ NA_real_)) %>% select(-maxWinOdds, -minLoseOdds, -maxProfit, -rank.upset, -year, -odds.upset, -Tournament, -Location, -favorite_won) 
+imputed.data <- imputed.data %>% na.omit() %>% mutate(payout.favorite = case_when(favorite_won == "TRUE"  ~ bet * ( FMaxOdds - 1), favorite_won =="FALSE" ~ -bet, TRUE ~ NA_real_), payout.underdog = case_when(favorite_won == "FALSE"  ~ bet * ( UMaxOdds - 1), favorite_won =="TRUE" ~ -bet, TRUE ~ NA_real_)) %>% select(-maxWinOdds, -minLoseOdds, -maxProfit, -rank.upset, -year, -odds.upset, -Tournament, -Location, -favorite_won)
+imputed.data <- imputed.data %>% mutate(payout = payout.underdog) %>% select(-payout.favorite, -payout.underdog)
 str(imputed.data)
 old.imputed.data <- imputed.data
 
@@ -81,10 +82,16 @@ library(scales)
 
 ```
 ```{r}
+# theme
+my.theme <- theme(axis.text.x=element_text(face="bold",color="cyan4", size=10), axis.text.y=element_text(face="bold",color="cyan4",size=10), axis.title = element_text(face="bold",color="royalblue4",size=13), plot.title = element_text(face="bold",color="violetred4",size=15,hjust=.5), legend.title=element_blank(), plot.subtitle = element_text(face="bold", color="royalblue4", size=10, hjust=.5))
+
+```
+
+```{r}
 plot.winnings <- function(df, title){
   df.new.pred <- df %>% dplyr::filter(is.finite(winnings)) %>% arrange(date.new) %>% mutate(winnings = cumsum(winnings))
       # print(all.new.pred)
-  plot.df <- ggplot(df.new.pred, aes(date.new, winnings)) + geom_line()+ xlab("Date") + ylab("Winnings") + ggtitle(title)
+  plot.df <- ggplot(df.new.pred, aes(date.new, winnings)) + geom_line(color='orange3', size=1) + xlab("Date") + ylab("Winnings") + ggtitle(title)
   
   print(plot.df)
   
@@ -95,8 +102,10 @@ plot.winnings <- function(df, title){
 
 loop through everything
 ```{r}
-
-for(i in 2016:2017){
+rf.final.payouts = c()
+svm.final.payouts =c()
+reg.final.payouts = c()
+for(i in 2011:2017){
   train.start.date <-  paste0(i-3, "-01-01", sep = '')
   train.end.date <- paste0(i-1, "-01-01", sep = '')
   test.start.date <- paste0(i, "-01-01", sep = '')
@@ -157,151 +166,26 @@ for(i in 2016:2017){
   print(reg.pred.group)
 
   #make bets
-  rf.bets <- rf.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 0)
-  svm.bets <- svm.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 0)
-  reg.bets <- reg.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 0)
+  rf.bets <- rf.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 2)
+  svm.bets <- svm.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 2)
+  reg.bets <- reg.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 2)
   #used for making plot
 
   plot.winnings(rf.bets, paste(test.start.date, "Random Forest Payout"))
   plot.winnings(svm.bets, paste(test.start.date, "Support Vector Machine Payout"))
   plot.winnings(reg.bets, paste(test.start.date, "Logistic Regression payout"))
  
-}
-```
-
-# Doing one by one with more info
-```{r}
-new.train <- imputed.data %>% dplyr::filter(date.new < as.Date("2017-01-01"), date.new >= as.Date("2015-01-01")) 
-# new.train <- sample_frac(train.imputed, .1, replace = F)
-
-iris_rf = randomForest(favorite_won~., data=new.train, ntree=20, proximity=T)
-table(predict(iris_rf), new.train$favorite_won)
-
-```
-```{r}
-#library(rfUtilities)
-# for(num.trees in c(10, 30, 70, 120, 200)){
   
-# iris_rf = randomForest(favorite_won~., data=new.train, ntree=num.trees, proximity=T)
-# table(predict(iris_rf), new.train$favorite_won)
-# print(rf.crossValidation(iris_rf, new.train, p = 0.1, n = 10, seed = 1234, plot = TRUE))
-# }
-
+  #append final payouts
+  rf.final.payouts <-  c(rf.final.payouts, sum(rf.bets$winnings))
+  svm.final.payouts <-  c(svm.final.payouts, sum(svm.bets$winnings))
+  reg.final.payouts <-  c(reg.final.payouts, sum(reg.bets$winnings))
+}
+final.payouts <- data.frame(random.forest = rf.final.payouts, svm = svm.final.payouts, log.reg = reg.final.payouts)
+final.payouts
 ```
 
 
-```{r}
-testData <- imputed.data %>% dplyr::filter(date.new > as.Date("2017-01-01"), date.new < as.Date("2018-01-01"))
-
-
-iris_rf
-plot(iris_rf)
-importance(iris_rf)
-irisPred = predict(iris_rf, newdata=testData)
-table(irisPred, testData$favorite_won)
-#plot(margin(iris_rf, testData$favorite_won))
-test.pred <- testData
-test.pred$prediction <- irisPred
-str(test.pred)
-head(test.pred, 1)
-```
-
-
-
-```{r}
-bet <- 1
-test.pred <- test.pred %>% mutate(maxProfit = case_when(favorite_won == "TRUE"  ~ bet * ( FMaxOdds - 1), favorite_won =="FALSE" ~ bet * (UMaxOdds - 1)  , TRUE ~ NA_real_))
-
-test.pred <- test.pred %>% mutate( winnings = case_when(favorite_won == prediction  ~ maxProfit,  favorite_won != prediction ~ -bet, TRUE ~ NA_real_))
-
-sum(test.pred$winnings, na.rm = T)
-```
-```{r}
-library(scales)
-#str(test.pred)
-graph.pred <- test.pred %>% mutate(month = as.numeric(format(date.new, "%W"))) %>% group_by(month) %>% summarize(winnings = sum(winnings)) 
-str(graph.pred)
-ggplot(graph.pred, aes(month, winnings)) + geom_line() + xlab("date") + ylab("winnings")
-
-ggplot(graph.pred, aes(month, winnings)) + stat_summary(fun.y = sum, geom = "bar") + xlab("date") + ylab("winnings")
-
-new.pred <- test.pred %>% arrange(date.new) %>% mutate(winnings = cumsum(winnings))
-
-ggplot(new.pred, aes(date.new, winnings)) + geom_line()+ xlab("Date") + ylab("Winnings")
-```
-
-
-```{r}
-#test.pred %>% group_by(maxProfit) %>% summarise(count = n())
-```
-
-```{r}
-test.pred %>% group_by(prediction, favorite_won) %>% summarize(avgF = mean(avgF), avgU = mean(avgU), n = n(), bets = sum(!is.na(winnings)), earnings = sum(winnings, na.rm = T))
-```
-
-```{r}
-naive <- test.pred %>% mutate( winnings = case_when(upset == F & countWinOdds > 0 & countLoseOdds > 0 ~ maxProfit * 1, upset != F & countWinOdds > 0 & countLoseOdds > 0 ~ -1 * 1, TRUE ~ NA_real_))
-sum(naive$winnings, na.rm = T)
-naive %>% group_by(upset, prediction) %>% summarise(sum(winnings, na.rm = TRUE))
-
-
-```
-
-
-```{r}
-CM = table(irisPred, testData$favorite_won)
-accuracy = (sum(diag(CM)))/sum(CM)
-print(CM)
-print(accuracy)
-```
-
-
-
-
-```{r}
-
-# CODE
-
-MW=function(payouts.nbyT){
-  X=payouts.nbyT
-  P=X*0
-  n=length(X[,1])
-  choices=1:n
-  L=length(X[1,])
-  ind=rep(1,L)
-  m=rep(0,L)
-  M=rep(0,L)
-  D=rep(0,L)
-  loss.total=rep(0,L)
-  beta=1/(1+sqrt(log(n^2)/L)) 
-  P[,1]=rep(1/n,n) 
-  loss.total[1]=X[ind[1],1]  
-  m[1]=P[,1]%*%X[,1]  
-  M[1]=m[1]  
-  D[1]=P[,1]%*%(X[,1]-P[,1]%*%X[,1])^2
-  for(t in 2:L){
-    P[,t]=P[,t-1]*beta^X[,t-1]/sum(P[,t-1]*beta^X[,t-1])
-    ind[t]=sample(choices,1,replace=FALSE,P[,t])
-    loss.total[t]=loss.total[t-1]+X[ind[t],t]
-    m[t]=P[,t]%*%X[,t]
-    M[t]=M[t-1]+m[t]
-    D[t]=D[t-1]+P[,t]%*%(X[,t]-P[,t]%*%X[,t])^2  }
-  plot(1:L,ind, type="l")
-  plot(1:L,loss.total/(1:L),type="l",col="red")
-  lines(1:L,M/(1:L))
-  lines(1:L,(M+D^0.55)/(1:L),type="l",col="green")
-  lines(1:L,(M-D^0.55)/(1:L),type="l",col="green")
-  for(k in 1:n){
-    lines(1:L,cumsum(X[k,])/(1:L),type="l",col="yellow") }
-  print(loss.total[L]/L)
-  print(X%*%rep(1,L)/L)
-  print(sqrt(log(n^2)/L)+log(n)/L)
-  print(sqrt(D[L])/L) }
-
-MW(matrix(1:4000,nrow=4,ncol=1000,byrow=T)/4000) 
-
-MW(matrix(1:4000,nrow=4,ncol=1000,byrow=T)) 
-```
 
 
 

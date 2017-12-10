@@ -15,108 +15,99 @@ library(tidyr)
 
 
 ```{r}
-load("clean.men.data.RData")
+load("favorite.data.RData")
 ```
 
 ```{r}
-men.data <- final.data
+men.data <- favorite.data
 ```
 
 ```{r}
 str(men.data)
 ```
+
 ### upset
 ```{r}
-upset_prop <- final.data %>% group_by(upset) %>% summarize(count = n(), proportion = n()/dim(final.data)[1])
-as.data.frame(upset_prop)
+odds.upset_prop <- favorite.data %>% group_by(odds.upset) %>% summarize(count = n(), proportion = n()/dim(final.data)[1])
+as.data.frame(odds.upset_prop)
 ```
 
 ```{r}
-ggplot(data = data.frame(upset_prop), mapping = aes(x = upset, y= proportion ))+geom_bar(stat = "identity")+
+ggplot(data = data.frame(odds.upset_prop), mapping = aes(x = odds.upset, y= proportion ))+geom_bar(stat = "identity")+
   scale_y_continuous(labels = scales :: percent)+
-  labs(x = "UPSET",y=NULL, title = "Proportions in UPSET ")
+  labs(x = "UPSET",y=NULL, title = "Proportions in Rank Upset ")
 
 
 ```
-### upset vs Surface
+### odds.upset vs Surface
 ```{r}
-upsetSurface_prop <- final.data %>% group_by(upset, Surface,Round) %>% summarize(count = n(), proportion = n()/dim(final.data)[1])
-as.data.frame(upsetSurface_prop)
-```
-```{r}
-ggplot(data = data.frame(upsetSurface_prop), mapping = aes(x = upset, y= proportion , fill = Surface))+geom_bar(stat = "identity", position="dodge")+
-  scale_y_continuous(labels = scales :: percent)+labs(x = "UPSET",y="percentage", title = "Proportions in UPSET by Surface")
+Surface_prop <- favorite.data %>% group_by(Surface) %>% summarize(count = n(), prop.upset = mean(as.logical(odds.upset)))%>% mutate(prop.fav = 1-prop.upset)
+as.data.frame(Surface_prop)
 
-ggplot(data = data.frame(upsetSurface_prop), mapping = aes(x = Surface, y= proportion , fill = upset))+geom_bar(stat = "identity", position="dodge")+
-  scale_y_continuous(labels = scales :: percent)+labs(x = "Surface",y="percentage", title = "Proportions in UPSET by Surface")
-```
-```{r}
- upsetCarpet<-filter(upsetSurface_prop, Surface == "Carpet")
-as.data.frame(upsetCarpet)
-
-ggplot(data = data.frame(upsetCarpet), mapping = aes(x = upset, y= proportion , fill = upset))+geom_bar(stat = "identity", position="dodge")+
-  scale_y_continuous(labels = scales :: percent)+
-  labs(x = "UPSET",y="Percentage", title = "Proportions in UPSET by &Round")+facet_grid(~Round)
-```
-```{r}
-upsetClay<-filter(upsetSurface_prop, Surface == "Clay")
-as.data.frame(upsetClay)
-
-ggplot(data = data.frame(upsetClay), mapping = aes(x = upset, y= proportion , fill = upset))+geom_bar(stat = "identity", position="dodge")+
-  scale_y_continuous(labels = scales :: percent)+
-  labs(x = "UPSET",y="Percentage", title = "Proportions in UPSET by Clay&Round")+facet_grid(~Round)+theme(text = element_text(size=8), axis.text.x = element_text(angle=45, hjust=1))
-```
-```{r}
-upsetGrass<-filter(upsetSurface_prop, Surface == "Grass")
-as.data.frame(upsetGrass)
-
-ggplot(data = data.frame(upsetGrass), mapping = aes(x = upset, y= proportion , fill = upset))+geom_bar(stat = "identity", position="dodge")+
-  scale_y_continuous(labels = scales :: percent)+
-  labs(x = "UPSET",y="Percentage", title = "Proportions in UPSET by Grass&Round")+facet_grid(~Round)
 ```
 
 
 ```{r}
-upsetHard<-filter(upsetSurface_prop, Surface == "Hard")
-as.data.frame(upsetHard)
+ggplot(data = data.frame(Surface_prop),aes(x = Surface, y= prop.upset, fill =Surface))+geom_bar(stat = "identity", position="dodge")+
+  scale_y_continuous(labels = scales :: percent)+labs(x = "Surface",y="percentage", title = "Proportions in Odds.Upset by Surface")
+ggplot(data = data.frame(Surface_prop),aes(x = Surface, y= prop.fav, fill =Surface))+geom_bar(stat = "identity", position="dodge")+
+  scale_y_continuous(labels = scales :: percent)+labs(x = "Surface",y="percentage", title = "Proportions in Odds.Fav by Surface")
+```
+### odds.upset vs Round
+```{r}
+Round_prop <- favorite.data %>% group_by(Round) %>% summarize(count = n(), prop.upset = mean(as.logical(odds.upset)))%>% mutate(prop.fav = 1-prop.upset)
+as.data.frame(Round_prop)
+```
+```{r}
+ggplot(data = data.frame(Round_prop),aes(x = Round, y= prop.upset, fill =Round))+geom_bar(stat = "identity", position="dodge")+
+  scale_y_continuous(labels = scales :: percent)+labs(x = "Surface",y="percentage", title = "Proportions in Odds.Upset by Round")
+ggplot(data = data.frame(Round_prop),aes(x = Round, y= prop.fav, fill =Round))+geom_bar(stat = "identity", position="dodge")+
+  scale_y_continuous(labels = scales :: percent)+labs(x = "Surface",y="percentage", title = "Proportions in Odds.Fav by Round")
+```
+### odds.upset vs Surface & Round
+```{r}
+SurfaceRound_prop <- favorite.data %>% group_by(Surface,Round) %>% summarize(count = n(), prop.upset = mean(as.logical(odds.upset)))%>% mutate(prop.fav = 1-prop.upset)
+as.data.frame(SurfaceRound_prop)
+```
 
-ggplot(data = data.frame(upsetHard), mapping = aes(x = upset, y= proportion , fill = upset))+geom_bar(stat = "identity", position="dodge")+
-  scale_y_continuous(labels = scales :: percent)+
-  labs(x = "UPSET",y="Percentage", title = "Proportions in UPSET by Hard&Round")+facet_grid(~Round)
+
+```{r}
+ggplot(data = data.frame(SurfaceRound_prop), mapping = aes(x = Surface, y= prop.upset , fill = Surface))+geom_bar(stat = "identity", position="dodge")+
+  scale_y_continuous(labels = scales :: percent)+labs(x = "Surface",y="percentage", title = "Proportions in Odds.Upset by Surface")+ facet_grid(~Round)+theme(text = element_text(size=10), axis.text.x = element_text(angle=45, hjust=1)) 
+ggplot(data = data.frame(SurfaceRound_prop), mapping = aes(x = Surface, y= prop.fav , fill = Surface))+geom_bar(stat = "identity", position="dodge")+
+  scale_y_continuous(labels = scales :: percent)+labs(x = "Surface",y="percentage", title = "Proportions in Odds.Upset by Surface")+ facet_grid(~Round)+theme(text = element_text(size=10), axis.text.x = element_text(angle=45, hjust=1)) 
 ```
 
 
 ###Upset by Series
 The Grandslam tourments, also called major, are the four most important annual tennis events. They offer most prize pool, ranking points and public attention.
+According to the graph below, we can clearly see that Grand Slam has lowest upset rates. So keep ketting on odds favorite should be a solid strategy on Grand Slam Series. 
 ```{r}
-Series <- final.data %>% group_by(Series,upset) %>% summarize(count = n(), proportion = n()/dim(final.data)[1])
+Series <- favorite.data %>% group_by(Series) %>% summarize(count = n(), prop.upset = mean(as.logical(odds.upset)))%>% mutate(prop.fav = 1-prop.upset)
 as.data.frame(Series)
 
-ggplot(data = data.frame(Series), mapping = aes(x = upset, y= proportion , fill = Series))+geom_bar(stat = "identity", position="dodge",colours = "Series")+
-scale_y_continuous(labels = scales :: percent)+labs(x = "upset",y="percentage", title = "Proportions in UPSET by Series") + theme(text = element_text(size=15), axis.text.x = element_text(angle=45, hjust=1)) 
+ggplot(data = data.frame(Series), mapping = aes(x = Series, y= prop.upset , fill = Series))+geom_bar(stat = "identity", position="dodge",colours = "Series")+
+scale_y_continuous(labels = scales :: percent)+labs(x = "upset",y="percentage", title = "Proportions in odds.upset by Series") + theme(text = element_text(size=15), axis.text.x = element_text(angle=45, hjust=1)) 
 
-ggplot(data = data.frame(Series), mapping = aes(x = Series, y= proportion , fill = upset))+geom_bar(stat = "identity", position="dodge",colours = "Series")+
-scale_y_continuous(labels = scales :: percent)+labs(x = "Series",y="percentage", title = "Proportions in UPSET by Series") + theme(text = element_text(size=15), axis.text.x = element_text(angle=45, hjust=1)) 
+ggplot(data = data.frame(Series), mapping = aes(x = Series, y= prop.fav , fill = Series))+geom_bar(stat = "identity", position="dodge",colours = "Series")+
+scale_y_continuous(labels = scales :: percent)+labs(x = "Series",y="percentage", title = "Proportions in odds.fav by Series") + theme(text = element_text(size=15), axis.text.x = element_text(angle=45, hjust=1)) 
 ```
+
+
 ```{r}
-filter(Series, Series=="Grand Slam")
-Grandslam.upset <- Grandslam %>% group_by(upset,Round) %>% summarize(count = n(), proportion = n()/dim(final.data)[1])
+
+Grandslam.upset <- favorite.data %>% group_by(Series,Round) %>% summarize(count = n(), prop.upset = mean(as.logical(odds.upset)))%>% mutate(prop.fav = 1-prop.upset)
 as.data.frame(Grandslam.upset)
+filter(Grandslam.upset, Series == "Grand Slam")
 
-ggplot(data = data.frame(Grandslam.upset), mapping = aes(x = upset, y= proportion , fill = upset))+geom_bar(stat = "identity", position="dodge")+
+ggplot(data = data.frame(Grandslam.upset), mapping = aes(x = Round, y= prop.upset,fill =Round ))+geom_bar(stat = "identity", position="dodge")+
   scale_y_continuous(labels = scales :: percent)+
-  labs(x = "UPSET",y="Percentage", title = "Proportions in UPSET by Grand Slam & Round")+facet_grid(~Round)+theme(text = element_text(size=10), axis.text.x = element_text(angle=45, hjust=1)) 
+  labs(x = "UPSET",y="Percentage", title = "Proportions in UPSET by Grand Slam & Round")+theme(text = element_text(size=10), axis.text.x = element_text(angle=45, hjust=1)) 
 ```
 
 
 
 
-###UPSET vs FRank
-```{r}
-upsetFRank_prop <- final.data %>% group_by(upset, FRank,Round) %>% summarize(count = n(), proportion = n()/dim(final.data)[1])
-as.data.frame(upsetFRank_prop)
-ggplot(data = data.frame(upsetFRank_prop), mapping = aes(x = FRank, y= proportion , colour = upset))+geom_point()+scale_y_continuous(limits=c(0,0.003),labels = scales :: percent)+scale_x_continuous(limits = c(0,1000))+facet_grid(~Round) + theme(text = element_text(size=7), axis.text.x = element_text(angle=90, hjust=1))
-```
 
 
 
