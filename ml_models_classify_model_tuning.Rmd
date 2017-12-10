@@ -1,3 +1,4 @@
+
 ---
 title: "Random Forest"
 author: "Will Renius"
@@ -105,87 +106,83 @@ for(i in 2011:2017){
   
   new.train <- imputed.data %>% dplyr::filter(date.new < as.Date(train.end.date), date.new >= as.Date(train.start.date)) 
   
-  #Make predictive models
-  
-  #rf.model = randomForest(upset.payout~., data=new.train, ntree=20, proximity=T)
-  rf.model = randomForest(favorite_won~., data=new.train, ntree=20, proximity=T)
-  
-  #importance of each column
-  #print(importance(rf.model))
-  
-  #SVM
-  svm.model <- svm(favorite_won~., data = new.train)
-  
-  #Log Reg
-  reg.model <- glm(favorite_won ~.,family=binomial(link='logit'),data=new.train)
-  
-  #Addaboost
-  boost.model <- adaboost(favorite_won ~., new.train, nIter = 20)
-                   
   test.data <- imputed.data %>% dplyr::filter(date.new > as.Date(test.start.date), date.new < as.Date(test.end.date))
   print(str(test.data))
   
-  rf.prediction = predict(rf.model, newdata=test.data)
-  svm.prediction <- predict(svm.model, test.data)
-  reg.prediction <- as.factor(predict(reg.model, test.data, type = "response") < .5)
-  boost.prediction <- predict( boost.model,test.data)$class
-  #print(head(predict( boost.model,test.data), 10))
+  #Make predictive models
 
-  #Make data with prediction column
-
-  #random forest
-  rf.pred <- test.data
-  rf.pred$prediction <- rf.prediction
-
+  # rf.model = randomForest(favorite_won~., data=new.train, ntree=20, proximity=T)
+  # rf.prediction = predict(rf.model, newdata=test.data)
+  # rf.pred <- test.data
+  # rf.pred$prediction <- rf.prediction
+  # rf.bets <- rf.pred %>% mutate( winnings = case_when(prediction != favorite_won ~-bet,
+  #                                            prediction == "TRUE" & favorite_won == prediction  ~ bet * (FMaxOdds -1),
+  #                                            prediction == "FALSE" & favorite_won == prediction ~ bet * (UMaxOdds -1),
+  #                                            TRUE ~ NA_real_))
+  # plot.winnings(rf.bets, paste(test.start.date, "Random Forest Winnings"))
+  # rf.final.payouts <-  c(rf.final.payouts, sum(rf.bets$winnings))
+  # #importance of each column
+  # print(importance(rf.model))
+  # print(rf.model)
   #SVM
-  svm.pred <- test.data
-  svm.pred$prediction <- svm.prediction
-
-  #Log Regression
+  # kernels = c("linear", "polynomial", "radial", "sigmoid")
+  # for(k in kernels){
+  #   svm.model <- svm(favorite_won~., data = new.train, kernel = k)
+  #   svm.prediction <- predict(svm.model, test.data)
+  #   svm.pred <- test.data
+  #   svm.pred$prediction <- svm.prediction
+  #   svm.bets <- svm.pred %>% mutate( winnings = case_when(prediction != favorite_won ~-bet,
+  #                                              prediction == "TRUE" & favorite_won == prediction  ~ bet * (FMaxOdds -1),
+  #                                              prediction == "FALSE" & favorite_won == prediction ~ bet * (UMaxOdds -1),
+  #                                              TRUE ~ NA_real_))
+  #   plot.winnings(svm.bets, paste(test.start.date, k, "Support Vector Machine Winnings"))
+  #   svm.final.payouts <-  c(svm.final.payouts, sum(svm.bets$winnings))
+  # }
+  
+  # 
+  #Log Reg
+  reg.model <- glm(favorite_won ~.,family=binomial(link='logit'),data=new.train)
+  reg.prediction <- as.factor(predict(reg.model, test.data, type = "response") < .5)
   reg.pred <- test.data
   reg.pred$prediction <- reg.prediction
-
-  #Addaboost
-  boost.pred <- test.data
-  boost.pred$prediction <- boost.prediction
-
-  #make bets
-  
-  rf.bets <- rf.pred %>% mutate( winnings = case_when(prediction != favorite_won ~-bet,
-                                             prediction == "TRUE" & favorite_won == prediction  ~ bet * (FMaxOdds -1),
-                                             prediction == "FALSE" & favorite_won == prediction ~ bet * (UMaxOdds -1),
-                                             TRUE ~ NA_real_))
-  svm.bets <- svm.pred %>% mutate( winnings = case_when(prediction != favorite_won ~-bet,
-                                             prediction == "TRUE" & favorite_won == prediction  ~ bet * (FMaxOdds -1),
-                                             prediction == "FALSE" & favorite_won == prediction ~ bet * (UMaxOdds -1),
-                                             TRUE ~ NA_real_))
   reg.bets <- reg.pred %>% mutate( winnings = case_when(prediction != favorite_won ~-bet,
                                              prediction == "TRUE" & favorite_won == prediction  ~ bet * (FMaxOdds -1),
                                              prediction == "FALSE" & favorite_won == prediction ~ bet * (UMaxOdds -1),
                                              TRUE ~ NA_real_))
-  boost.bets <- boost.pred %>% mutate( winnings = case_when(prediction != favorite_won ~-bet,
-                                             prediction == "TRUE" & favorite_won == prediction  ~ bet * (FMaxOdds -1),
-                                             prediction == "FALSE" & favorite_won == prediction ~ bet * (UMaxOdds -1),
-                                             TRUE ~ NA_real_))
-  #used for making plot
+  print(summary(reg.model))
+  print(table(reg.pred$favorite_won, reg.prediction > 0.5))
+  print(table(reg.pred$favorite_won, reg.prediction < 0.5))
 
-  plot.winnings(rf.bets, paste(test.start.date, "Random Forest Winnings"))
-  plot.winnings(svm.bets, paste(test.start.date, "Support Vector Machine Winnings"))
+
+  # reg.final.payouts <-  c(reg.final.payouts, sum(reg.bets$winnings))
   plot.winnings(reg.bets, paste(test.start.date, "Logistic Regression Winnings"))
-  plot.winnings(boost.bets, paste(test.start.date, "AdaBoost Winnings"))
-
-  #append final payouts
-  rf.final.payouts <-  c(rf.final.payouts, sum(rf.bets$winnings))
-  svm.final.payouts <-  c(svm.final.payouts, sum(svm.bets$winnings))
-  reg.final.payouts <-  c(reg.final.payouts, sum(reg.bets$winnings))
-  boost.final.payouts <-  c(boost.final.payouts, sum(boost.bets$winnings))
+  # #Addaboost
+  # boost.model <- adaboost(favorite_won ~., new.train, nIter = 20)
+  # boost.prediction <- predict( boost.model,test.data)$class
+  # boost.pred <- test.data
+  # boost.pred$prediction <- boost.prediction
+  # boost.bets <- boost.pred %>% mutate( winnings = case_when(prediction != favorite_won ~-bet,
+  #                                            prediction == "TRUE" & favorite_won == prediction  ~ bet * (FMaxOdds -1),
+  #                                            prediction == "FALSE" & favorite_won == prediction ~ bet * (UMaxOdds -1),
+  #                                            TRUE ~ NA_real_))
+  # plot.winnings(boost.bets, paste(test.start.date, "AdaBoost Winnings"))
+  # boost.final.payouts <-  c(boost.final.payouts, sum(boost.bets$winnings))
+  # #append final payouts
+  # 
+  
+  
+  
 }
-final.payouts <- data.frame(random.forest = rf.final.payouts, svm = svm.final.payouts, log.reg = reg.final.payouts, ada.boost = boost.final.payouts)
-final.payouts
+# final.payouts <- data.frame(random.forest = rf.final.payouts, svm = svm.final.payouts, log.reg = reg.final.payouts, ada.boost = boost.final.payouts)
+# final.payouts
 ```
 
 ```{r}
 boost.model <- adaboost(favorite_won ~., new.train, nIter = 20)
 get_tree(boost.model, 1)
 ```
+```{r}
+svm.model$SV
+```
+
 
