@@ -1,0 +1,246 @@
+---
+title: "Predict Odds"
+author: "Cate Capiak"
+date: "November 27, 2017"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(knitr)
+```
+
+```{r}
+load("data/favorite.data.RData")
+data <- favorite.data
+
+```
+```{r}
+# new column for variable: year
+data$year <- rep(NA, nrow(data))
+for(i in 1:nrow(data)){
+  year <- substr(x = data$date[i], start = 1, stop = 4)
+  data$year[i] <- year
+}
+# convert 'Best.of' to Factor variable
+data$Best.of <- as.factor(data$Best.of)
+
+favorite_won <- favorite.data %>% mutate(!odds.upset)
+
+```
+```{r}
+data <- data %>% mutate(favorite_won = !odds.upset)
+data <- data %>% filter((FcountOdds > 0) & (UcountOdds > 0) & Round != "Round Robin")
+
+```
+
+
+```{r}
+train <- data %>% filter(!(year %in% c("2015","2016","2017")))
+test <- data %>% filter(year %in% c("2015","2016","2017"))
+
+#train$favorite_won <- as.factor(train$favorite_won)
+# Make adaptions to the training data
+#train <- train %>% filter(!(Round %in% c("1st Round","2nd Round")))
+```
+
+```{r}
+# Row-proportions: Best.of vs. favorite_won
+best.v.f <- prop.table(table(train$Best.of, train$favorite_won),1)
+
+
+# Row-proportions: Surface vs. favorite_won
+surf.v.f <- prop.table(table(train$Surface, train$favorite_won),1)
+
+
+# Row-proportions: Round vs. favorite_won
+round.v.f <- prop.table(table(train$Round, train$favorite_won),1)
+
+
+# Row-proportions: Series vs. favorite_won
+seri.v.f <- prop.table(table(train$Series, train$favorite_won),1)
+
+
+# Row-proportions: Court vs. favorite_won
+court.v.f <- prop.table(table(train$Court, train$favorite_won),1)
+
+```
+
+```{r}
+#Surface vs. Favorite Won Plot
+ggplot(data = train, aes(x = favorite_won, stat = "count")) + geom_bar(aes(fill= favorite_won)) + facet_wrap(~Surface, scales = "free")
+
+```
+
+```{r}
+
+#Court vs. Favorite_won Plot
+ggplot(data = train, aes(x = favorite_won, stat = "count")) + geom_bar(aes(fill= favorite_won)) + facet_wrap(~Court, scales = "free")
+
+```
+
+```{r}
+#Round vs. Favorite_won Plot
+ggplot(data = train, aes(x = favorite_won, stat = "count")) + geom_bar(aes(fill= favorite_won)) + facet_wrap(~Round, scales = "free")
+```
+
+```{r}
+#Best.of vs. Favorite_won Plot
+ggplot(data = train, aes(x = favorite_won, stat = "count")) + geom_bar(aes(fill= favorite_won)) + facet_wrap(~Best.of, scales = "free")
+```
+
+```{r}
+#Series vs. Favorite_won Plot
+ggplot(data = train, aes(x = favorite_won, stat = "count")) + geom_bar(aes(fill= favorite_won)) + facet_wrap(~Series, scales = "free")
+```
+
+##Code to Make Tables Of Odd Upsets
+```{r}
+# Row-proportions: Best.of vs. odds.upset
+prop.table(table(train$Best.of, train$odds.upset),1)
+
+# Row-proportions: Surface vs. odds.upset
+prop.table(table(train$Surface, train$odds.upset),1)
+
+# Row-proportions: Round vs. odds.upset
+prop.table(table(train$Round, train$odds.upset),1)
+
+# Row-proportions: Series vs. odds.upset
+prop.table(table(train$Series,train$odds.upset),1)
+
+# Row-proportions: Court vs. odds.upset
+prop.table(table(train$Court,train$odds.upset),1)
+
+```
+
+```{r}
+# Row-proportions: Best.of vs. odds.upset
+# Turns table into dataframe
+df.bestof.1 <- as.data.frame(prop.table(table(train$Best.of, train$odds.upset),1))
+names(df.bestof.1) <- c("Best.of", "odds.upset", "upset.freq")
+# Select only the upset frequencies
+df.bestof.1 <- df.bestof.1 %>% filter(odds.upset == TRUE) %>% select(1,3)
+
+```
+
+```{r}
+# Find only the total count of odds upset
+t1<- train %>% group_by(Best.of) %>% filter(odds.upset==TRUE) %>% summarize(total= sum(odds.upset))
+# Find total amount of matches 
+t2<- train %>% group_by(Best.of) %>% summarize(total = length(odds.upset))
+
+# Put counts into dataframe
+df.bestof.1$odds.upset <- as.data.frame(t1)[,2]
+df.bestof.1$total.matches <- as.data.frame(t2)[,2]
+# Rename the columns
+colnames(df.bestof.1) <- c("Best.of", "Upset Frequencies", "Number of Odds Upset", "Total Number of Matches")
+
+```
+```{r}
+# Create the table
+kable(df.bestof.1)
+```
+```{r}
+# Turn Series table into dataframe
+df.series.1 <- as.data.frame(prop.table(table(train$Series, train$odds.upset),1))
+names(df.series.1) <- c("Series", "odds.upset", "upset.freq")
+# Filter to grab only the upset frequncy 
+df.series.1 <- df.series.1 %>% filter(odds.upset == TRUE) %>% select(1,3)
+
+```
+
+```{r}
+# Find only the total count of odds upsets 
+t3<- train %>% group_by(Series) %>% filter(odds.upset==TRUE) %>% summarize(total= sum(odds.upset))
+# Find the total number of matches in series
+t4<- train %>% group_by(Series) %>% summarize(total = length(odds.upset))
+
+# Put both counts into dataframe
+df.series.1$odds.upset <- as.data.frame(t3)[,2]
+df.series.1$total.matches <- as.data.frame(t4)[,2]
+# Rename the columns
+colnames(df.series.1) <- c("Series", "Upset Frequency", "Number of Odds Upset", "Total Number of Matches")
+# Create the table
+kable(df.series.1)
+```
+
+```{r}
+# Row-proportions: Court vs. odds.upset
+# Create dataframe from the table
+df.Court.1 <- as.data.frame(prop.table(table(train$Court, train$odds.upset),1))
+names(df.Court.1) <- c("Court", "odds.upset", "upset.freq")
+# Filter to only grab the odds upset frequency
+df.Court.1 <- df.Court.1 %>% filter(odds.upset == TRUE) %>% select(1,3)
+
+```
+
+```{r}
+# Filter to grab the odds upset count total
+t5<- train %>% group_by(Court) %>% filter(odds.upset==TRUE) %>% summarize(total= sum(odds.upset))
+# Grab the total amount of matches by court
+t6<- train %>% group_by(Court) %>% summarize(total = length(odds.upset))
+
+# Put both counts into the dataframe
+df.Court.1$odds.upset <- as.data.frame(t5)[,2]
+df.Court.1$total.matches <- as.data.frame(t6)[,2]
+# Rename the columns
+colnames(df.Court.1) <- c("Court", "Upset Frequency", "Number of Odds Upset", "Total Number of Matches")
+# Create the table
+kable(df.Court.1)
+```
+
+```{r}
+# Row-proportions: Court vs. odds.upset
+# Create a dataframe from the table
+df.Round.1 <- as.data.frame(prop.table(table(train$Round, train$odds.upset),1))
+names(df.Round.1) <- c("Round", "odds.upset", "upset.freq")
+# Find the odds upset frequency 
+df.Round.1 <- df.Round.1 %>% filter(odds.upset == TRUE) %>% select(1,3)
+
+```
+
+```{r}
+# Filter to find the odds upset count total
+t7<- train %>% group_by(Round) %>% filter(odds.upset==TRUE) %>% summarize(total= sum(odds.upset))
+# Find the total amount of matches per round
+t8<- train %>% group_by(Round) %>% summarize(total = length(odds.upset))
+
+# Put both counts into the dataframe
+df.Round.1$odds.upset <- as.data.frame(t7)[,2]
+df.Round.1$total.matches <- as.data.frame(t8)[,2]
+# Rename the columns
+colnames(df.Round.1) <- c("Round", "Upset Frequency", "Number of Odds Upset", "Total Number of Matches")
+#Create the table
+kable(df.Round.1)
+```
+
+```{r}
+# Row-proportions: Court vs. odds.upset
+# Create the dataframe from the table
+df.surface.1 <- as.data.frame(prop.table(table(train$Surface, train$odds.upset),1))
+names(df.surface.1) <- c("Surface", "odds.upset", "upset.freq")
+# Select only the odds upset frequency
+df.surface.1 <- df.surface.1 %>% filter(odds.upset == TRUE) %>% select(1,3)
+
+```
+
+```{r}
+# Filter to find the odds upset count
+t9<- train %>% group_by(Surface) %>% filter(odds.upset==TRUE) %>% summarize(total= sum(odds.upset))
+# Find the total amount of matches per surface
+t10<- train %>% group_by(Surface) %>% summarize(total = length(odds.upset))
+
+# Put the counts into the dataframe
+df.surface.1$odds.upset <- as.data.frame(t9)[,2]
+df.surface.1$total.matches <- as.data.frame(t10)[,2]
+# Rename the columns
+colnames(df.surface.1) <- c("Surface", "Upset Frequency", "Number of Odds Upset", "Total Number of Matches")
+# Create the table
+kable(df.surface.1)
+```
+
