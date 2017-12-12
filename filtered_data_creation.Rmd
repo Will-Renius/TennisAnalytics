@@ -48,10 +48,15 @@ men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) min(x, na.rm = 
 men.data %>% select(win.odds.col.nums) %>% apply(1, function(x) min(x, na.rm = T) )-> men.data$minWinOdds
 
 #already done double checked, avgL same values
-#men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) mean(x, na.rm = T) )-> men.data$meanLoseOdds
+men.data %>% select(lose.odds.col.nums) %>% apply(1, function(x) mean(x, na.rm = T) )-> men.data$avgL
 
-#men.data %>% select(win.odds.columns) %>% apply(1, function(x) mean(x, na.rm = T) )-> men.data$meanWinOdds
+men.data %>% select(win.odds.columns) %>% apply(1, function(x) mean(x, na.rm = T) )-> men.data$avgW
 ```
+
+```{r}
+str(men.data)
+```
+
 ```{r}
 #men.data %>% filter (meanLoseOdds != avgW)
 ```
@@ -66,12 +71,14 @@ data.filtered$LRank <- as.integer(data.filtered$LRank)
 data.filtered$LPts <- as.integer(data.filtered$LPts)
 #creating new variable upset that I use as label to predict
 data.filtered <- mutate(data.filtered, upset = as.factor(WRank > LRank))
+data.filtered <- mutate(data.filtered, maxProfit = (maxWinOdds - 1))
 
 str(data.filtered)
 
 ```
 Save data
 ```{r}
+save(data.filtered, file = "data/men.filtered.data.RData")
 #save(men.data, file = "men.data.RData")
 ```
 
@@ -106,5 +113,40 @@ for(col.index in win.odds.col.nums.2){
 
 #test.filtered %>% group_by(.dots=dots) %>% summarise(count = n()) %>% arrange(desc(count))
 ```
+
+```{r}
+b
+a <- c(.09, .172)
+b <- c(.310, .335, .429) 
+c <- c(.640, .642, .851)
+sse <-  0
+for(e in a){
+    sse <- sse + (.131 - e)^2
+}
+for(e in b){
+    sse <- sse + (.358 - e)^2
+}
+for(e in c){
+    sse <- sse + (.711 - e)^2
+}
+
+print(sse)
+```
+```{r}
+sse <- function(centers, vectors){
+  sse <- 0
+  for(i in length(centers)){
+    for(el in vectors[i]){
+      sse <-  sse + (el - centers[i])^2
+    }
+    
+  }
+  return(sse)
+}
+vectors <- c(c(.1, .2, .35), c(.55))
+centers <- c(c())
+print(ss)
+```
+
 
 

@@ -99,7 +99,7 @@ reg.final.payouts = c()
 boost.final.payouts = c()
 
 #starting in 2011 because some data causes trouble before this year.
-for(i in 2016:2017){
+for(i in 2017:2017){
   #create date strings to use to limit training and testing datasets
   train.start.date <-  paste0(i-3, "-01-01", sep = '')
   train.end.date <- paste0(i-1, "-01-01", sep = '')
@@ -215,7 +215,16 @@ for(i in 2016:2017){
   svm.final.payouts <-  c(svm.final.payouts, sum(svm.bets$winnings))
   reg.final.payouts <-  c(reg.final.payouts, sum(reg.bets$winnings))
   boost.final.payouts <-  c(boost.final.payouts, sum(boost.bets$winnings))
- 
+  
+  #make aggregate table
+  agg.table <- rf.bets %>% summarise(test.start.date =test.start.date, method = "Random Forest",count = n(), net.profit = sum(winnings), successful.bets = sum(rf.bets$prediction == rf.bets$favorite_won))
+  agg.table <- agg.table %>%
+     rbind(svm.bets  %>% summarise(test.start.date =test.start.date, method = "SVM",count = n(), net.profit = sum(winnings), successful.bets = sum(svm.bets$prediction ==svm.bets$favorite_won))) %>%
+    rbind(reg.bets  %>% summarise(test.start.date =test.start.date, method = "Log reg",count = n(), net.profit = sum(winnings), successful.bets = sum(reg.bets$prediction ==reg.bets$favorite_won))) %>%
+  rbind(boost.bets  %>% summarise(test.start.date =test.start.date, method = "Boost",count = n(), net.profit = sum(winnings), successful.bets = sum(boost.bets$prediction ==boost.bets$favorite_won)))
+
+  agg.table <- agg.table %>%mutate(success.rate = successful.bets / count, average.payout = net.profit / count)
+  print(agg.table)
 }
 final.payouts <- data.frame(random.forest = rf.final.payouts, svm = svm.final.payouts, log.reg = reg.final.payouts, ada.boost = boost.final.payouts)
 
@@ -316,8 +325,10 @@ for(i in 2017:2017){
   reg.pred <- test.data
   reg.pred$prediction <- reg.prediction
   
-
-
+  # print(paste("rf R.squared: ", cor(test.data$payout,rf.prediction ) ^ 2))
+  # print(paste("SVM R.squared: ", cor(test.data$payout,svm.prediction ) ^ 2))
+  # print(paste("Logistic R.squared: ", cor(test.data$payout,reg.prediction ) ^ 2))
+  
   #View the predictions and results in order of highest expected return
   rf.pred.group <- rf.pred %>% group_by(prediction, payout) %>% summarize(count = n()) %>% arrange(desc(prediction))
   svm.pred.group <- svm.pred %>% group_by(prediction, payout) %>% summarize(count = n()) %>% arrange(desc(prediction))
@@ -329,9 +340,9 @@ for(i in 2017:2017){
 
   
   #make bets, here you can filter for when predicted winnings are greate than some threshold.
-  rf.bets <- rf.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 2)
-  svm.bets <- svm.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 2)
-  reg.bets <- reg.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 2)
+  rf.bets <- rf.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 20)
+  svm.bets <- svm.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 4)
+  reg.bets <- reg.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 20)
 
   #plot winnings
   plot.winnings(rf.bets, paste(test.start.date, "Random Forest Payout"))
@@ -343,6 +354,14 @@ for(i in 2017:2017){
   rf.final.payouts <-  c(rf.final.payouts, sum(rf.bets$winnings))
   svm.final.payouts <-  c(svm.final.payouts, sum(svm.bets$winnings))
   reg.final.payouts <-  c(reg.final.payouts, sum(reg.bets$winnings))
+  
+  #create aggregate table
+  agg.table <- rf.bets %>% summarise(test.start.date =test.start.date, method = "Random Forest",count = n(), net.profit = sum(winnings), successful.bets = sum(rf.bets$winnings > 0))
+  agg.table <- agg.table %>%
+     rbind(svm.bets  %>% summarise(test.start.date =test.start.date, method = "SVM",count = n(), net.profit = sum(winnings), successful.bets = sum(svm.bets$winnings > 0))) %>%
+    rbind(reg.bets  %>% summarise(test.start.date =test.start.date, method = "Log reg",count = n(), net.profit = sum(winnings), successful.bets = sum(reg.bets$winnings > 0))) 
+  
+  print(agg.table)
 }
 final.payouts <- data.frame(random.forest = rf.final.payouts, svm = svm.final.payouts, log.reg = reg.final.payouts)
 final.payouts
@@ -353,8 +372,9 @@ final.payouts
 
   
  
- 
+
 ```{r}
+  #method for calculating F1 Statistic
   CM = table(test.data$favorite_won, reg.pred$prediction)
   accuracy = (sum(diag(CM)))/sum(CM)
   print(CM)
@@ -372,32 +392,6 @@ final.payouts
 ```
 
 
-```{r}
-## computing a simple ROC curve (x-axis: fpr, y-axis: tpr)
-library(ROCR)
-data(ROCR.simple)
-printCM = table(test.data$print_favorite_won, reg.pred$prediction)
-  accuracy = (sum(diag(CM)))/sum(CM)
-  print(CM)
-  print(accuracy)CM = table(test.data$print_favorite_won, reg.pred$prediction)
-  accuracy = (sum(diag(CM)))/sum(CM)
-  print(CM)
-  print(accuracy)CM = table(test.data$print_favorite_won, reg.pred$prediction)
-  accuracy = (sum(diag(CM)))/sum(CM)
-  print(CM)
-  print(accuracy)ZZZZZZ
-pred <- prediction( ROCR.simple$predictions, ROCR.simple$labels)
-perf <- performance(pred,"tpr","fpr")
-plot(perf)
-## precision/recall curve (x-axis: recall, y-axis: precision)
-perf1 <- performance(pred, "prec", "rec")
-plot(perf1)
-## sensitivity/specificity curve (x-axis: specificity,
-## y-axis: sensitivity)
-perf1 <- performance(pred, "sens", "spec")
-plot(perf1)
-
-```
 
 
 

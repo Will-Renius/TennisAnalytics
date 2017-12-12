@@ -64,7 +64,7 @@ for(col.name in underdog.columns){
 }
 
 bet <- 10
-#imputed.data <- imputed.data %>% na.omit() %>% mutate(upset.payout = case_when(favorite_won == "FALSE"  ~ bet * ( UMaxOdds - 1), favorite_won =="TRUE" ~ - bet, TRUE ~ NA_real_)) %>% select(-maxWinOdds, -minLoseOdds, -maxProfit, -rank.upset, -year, -odds.upset, -Tournament, -Location, -favorite_won) 
+
 imputed.data <- imputed.data %>% na.omit() %>% mutate(payout.favorite = case_when(favorite_won == "TRUE"  ~ bet * ( FMaxOdds - 1), favorite_won =="FALSE" ~ -bet, TRUE ~ NA_real_), payout.underdog = case_when(favorite_won == "FALSE"  ~ bet * ( UMaxOdds - 1), favorite_won =="TRUE" ~ -bet, TRUE ~ NA_real_)) %>% select(-maxWinOdds, -minLoseOdds, -maxProfit, -rank.upset, -year, -odds.upset, -Tournament, -Location, -favorite_won)
 imputed.data <- imputed.data %>% mutate(payout = payout.underdog) %>% select(-payout.favorite, -payout.underdog)
 str(imputed.data)
