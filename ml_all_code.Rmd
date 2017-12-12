@@ -340,9 +340,9 @@ for(i in 2017:2017){
 
   
   #make bets, here you can filter for when predicted winnings are greate than some threshold.
-  rf.bets <- rf.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 20)
-  svm.bets <- svm.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 4)
-  reg.bets <- reg.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 20)
+  rf.bets <- rf.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 2)
+  svm.bets <- svm.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 2)
+  reg.bets <- reg.pred %>% mutate( winnings = payout) %>% dplyr::filter(prediction > 2)
 
   #plot winnings
   plot.winnings(rf.bets, paste(test.start.date, "Random Forest Payout"))
@@ -368,28 +368,7 @@ final.payouts
 ```
 
  
- 
 
-  
- 
-
-```{r}
-  #method for calculating F1 Statistic
-  CM = table(test.data$favorite_won, reg.pred$prediction)
-  accuracy = (sum(diag(CM)))/sum(CM)
-  print(CM)
-  print(accuracy)
-  TP = CM[1, 1]
-  FP = CM[2,1]
-  FN = CM[2,2]
-  precision <- TP/(FP + TP)
-  recall <- TP/(FN + TP)
-  F1 <- 2 * (precision * recall)/(precision + recall)
-  precision
-  recall
-  F1
-  
-```
 
 
 
